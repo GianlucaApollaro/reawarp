@@ -1,3 +1,12 @@
+-- @description reawarp: audio warping (beat detection, warp, tempo map)
+-- @version 0.1.0
+-- @author Gabriel Schuck
+-- @license GPL-3.0-or-later
+-- @links
+--   GitHub https://github.com/gabrielschuck/reawarp
+-- @changelog
+--   First release (experimental).
+
 -- reawarp
 -- Audio warping for REAPER: detects the beats of a song (including songs with a
 -- variable tempo) and fits the item to the project tempo (stretch markers) or

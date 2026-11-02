@@ -1,0 +1,30 @@
+<?xml version='1.0' encoding='utf-8'?>
+<index version="1" name="reawarp">
+  <metadata>
+    <link rel="website">https://github.com/gabrielschuck/reawarp</link>
+  </metadata>
+  <category name="Tempo">
+    <reapack name="reawarp.lua" type="script" desc="reawarp: audio warping (beat detection, warp, tempo map)">
+      <metadata>
+        <link rel="website">https://github.com/gabrielschuck/reawarp</link>
+      </metadata>
+      <version name="0.1.0" author="Gabriel Schuck" time="2026-11-02T22:36:00Z">
+        <changelog>First release (experimental).</changelog>
+        <source main="main">https://github.com/gabrielschuck/reawarp/raw/v0.1.0/reawarp.lua</source>
+        <source file="actions/reawarp - Analyze beats.lua" main="main">https://github.com/gabrielschuck/reawarp/raw/v0.1.0/actions/reawarp%20-%20Analyze%20beats.lua</source>
+        <source file="actions/reawarp - Warp item to project tempo.lua" main="main">https://github.com/gabrielschuck/reawarp/raw/v0.1.0/actions/reawarp%20-%20Warp%20item%20to%20project%20tempo.lua</source>
+        <source file="actions/reawarp - Tempo map from item.lua" main="main">https://github.com/gabrielschuck/reawarp/raw/v0.1.0/actions/reawarp%20-%20Tempo%20map%20from%20item.lua</source>
+        <source file="actions/reawarp - Change song tempo.lua" main="main">https://github.com/gabrielschuck/reawarp/raw/v0.1.0/actions/reawarp%20-%20Change%20song%20tempo.lua</source>
+        <source file="actions/reawarp - Double BPM.lua" main="main">https://github.com/gabrielschuck/reawarp/raw/v0.1.0/actions/reawarp%20-%20Double%20BPM.lua</source>
+        <source file="actions/reawarp - Halve BPM.lua" main="main">https://github.com/gabrielschuck/reawarp/raw/v0.1.0/actions/reawarp%20-%20Halve%20BPM.lua</source>
+        <source file="actions/reawarp - Set downbeat at edit cursor.lua" main="main">https://github.com/gabrielschuck/reawarp/raw/v0.1.0/actions/reawarp%20-%20Set%20downbeat%20at%20edit%20cursor.lua</source>
+        <source file="actions/reawarp - Restore original items.lua" main="main">https://github.com/gabrielschuck/reawarp/raw/v0.1.0/actions/reawarp%20-%20Restore%20original%20items.lua</source>
+        <source file="actions/reawarp - Settings.lua" main="main">https://github.com/gabrielschuck/reawarp/raw/v0.1.0/actions/reawarp%20-%20Settings.lua</source>
+        <source file="backend/reawarp_beat_this.py">https://github.com/gabrielschuck/reawarp/raw/v0.1.0/backend/reawarp_beat_this.py</source>
+        <source file="backend/install_beat_this.bat" platform="windows">https://github.com/gabrielschuck/reawarp/raw/v0.1.0/backend/install_beat_this.bat</source>
+        <source file="backend/install_beat_this.sh" platform="darwin">https://github.com/gabrielschuck/reawarp/raw/v0.1.0/backend/install_beat_this.sh</source>
+        <source file="backend/install_beat_this.sh" platform="linux">https://github.com/gabrielschuck/reawarp/raw/v0.1.0/backend/install_beat_this.sh</source>
+      </version>
+    </reapack>
+  </category>
+</index>

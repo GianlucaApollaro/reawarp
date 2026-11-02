@@ -5,3 +5,4 @@ backend/models/
 backend/python/
 backend/uv/
 backend/uvcache/
+dist/

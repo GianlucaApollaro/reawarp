@@ -21,17 +21,36 @@ tela / OSARA). As mensagens aparecem em português ou inglês conforme a configu
 
 ## Instalação
 
-1. Copie `reawarp.lua` para uma pasta, por exemplo `%APPDATA%\REAPER\Scripts\reawarp\`.
+**Pelo ReaPack** (recomendado: as atualizações chegam sozinhas):
+
+1. No REAPER: *Extensions > ReaPack > Import repositories...* e cole
+   `https://github.com/gabrielschuck/reawarp/raw/main/index.xml`
+2. *Extensions > ReaPack > Browse packages*, procure **reawarp** e instale.
+   Todas as ações aparecem no Action List.
+
+**Manualmente** (sem o ReaPack):
+
+1. Baixe o ZIP da versão mais recente em
+   [Releases](https://github.com/gabrielschuck/reawarp/releases) e extraia a pasta
+   `reawarp` dentro da pasta `Scripts` do REAPER (*Options > Show REAPER resource path*).
 2. No REAPER: *Actions > Show action list > New action > Load ReaScript...* e carregue
    `reawarp.lua`.
 3. Rode a ação `reawarp.lua` uma vez. Ela abre o menu e registra as ações individuais no
    Action List (depois disso, pode cancelar o menu).
-4. Opcional: atribua atalhos às ações.
+
+Depois, instale o detector Beat This! pelo menu do reawarp (veja abaixo). Opcional: atribua
+atalhos às ações.
 
 Todo o código está em `reawarp.lua`. Como o REAPER associa cada ação a um arquivo, as
-ações individuais são arquivos de duas linhas, gerados automaticamente na subpasta
-`actions/`, que só chamam a função correspondente de `reawarp.lua`. Não é preciso
-editá-los, e eles são recriados se forem apagados. Os nomes das ações são em inglês.
+ações individuais são arquivos de duas linhas na subpasta `actions/`, que só chamam a
+função correspondente de `reawarp.lua`. Não é preciso editá-los, e eles são recriados se
+forem apagados. Os nomes das ações são em inglês.
+
+Para passar de uma instalação manual para o ReaPack: o ReaPack instala em
+`Scripts/reawarp/Tempo/`. Para manter o Beat This! já instalado, mova as pastas `env`,
+`models`, `python` e `uv` da pasta `backend` antiga para a nova; depois apague o
+`Scripts/reawarp/reawarp.lua` e a pasta `actions` antigos (e remova as entradas deles do
+Action List).
 
 | Ação no Action List | O que faz |
 |---|---|

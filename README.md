@@ -21,17 +21,35 @@ screen readers (OSARA).
 
 ## Installation
 
-1. Copy `reawarp.lua` to a folder, for example `%APPDATA%\REAPER\Scripts\reawarp\`.
+**With ReaPack** (recommended: updates arrive by themselves):
+
+1. In REAPER: *Extensions > ReaPack > Import repositories...* and paste
+   `https://github.com/gabrielschuck/reawarp/raw/main/index.xml`
+2. *Extensions > ReaPack > Browse packages*, search for **reawarp** and install it.
+   All the actions appear in the Action List.
+
+**Manually** (without ReaPack):
+
+1. Download the ZIP of the latest version from
+   [Releases](https://github.com/gabrielschuck/reawarp/releases) and extract the `reawarp`
+   folder into REAPER's `Scripts` folder (*Options > Show REAPER resource path*).
 2. In REAPER: *Actions > Show action list > New action > Load ReaScript...* and load
    `reawarp.lua`.
 3. Run the `reawarp.lua` action once. It opens the menu and registers the individual
    actions in the Action List (you can cancel the menu afterwards).
-4. Optional: assign shortcuts to the actions.
+
+Then install the Beat This! detector from the reawarp menu (see below). Optional: assign
+shortcuts to the actions.
 
 All the code is in `reawarp.lua`. REAPER maps each action to one file, so the individual
-actions are two-line files generated automatically in the `actions/` subfolder; they only
-call the matching function in `reawarp.lua`. You never need to edit them, and they are
-recreated if deleted.
+actions are two-line files in the `actions/` subfolder; they only call the matching
+function in `reawarp.lua`. You never need to edit them, and they are recreated if deleted.
+
+Moving from a manual installation to ReaPack: ReaPack installs into
+`Scripts/reawarp/Tempo/`. To keep the Beat This! already installed, move the folders
+`env`, `models`, `python` and `uv` from the old `backend` folder into the new one, then
+delete the old `Scripts/reawarp/reawarp.lua` and `actions` (and remove their entries from
+the Action List).
 
 | Action List entry | What it does |
 |---|---|
