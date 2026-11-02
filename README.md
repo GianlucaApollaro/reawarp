@@ -2,7 +2,7 @@
 
 *[Leia em português](README.pt-BR.md)*
 
-> **Experimental.** reawarp is still an experimental version: it has been tested on a
+> reawarp is still an experimental version: it has been tested on a
 > number of real songs, but expect rough edges. Contributions, bug reports and suggestions
 > are very welcome; see [Contributing](#contributing).
 >
