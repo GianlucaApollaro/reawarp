@@ -1,0 +1,7 @@
+__pycache__/
+*.pyc
+backend/env/
+backend/models/
+backend/python/
+backend/uv/
+backend/uvcache/
