@@ -215,6 +215,19 @@ def main():
     print(f'{"  bars not on 1":<24} {wrong}')
     results.append((recall, ok and wrong == 0))
 
+    # 14. external beats 25 ms late (as Beat This! often is): shifted onto the attacks
+    p = 60 / 118
+    truth = 0.8 + np.arange(60) * p
+    y = render(truth, noise=0.003, seed=14)
+    late = truth + 0.025 + rng.uniform(-0.004, 0.004, truth.size)
+    downs = np.round(truth[::4] / 0.02) * 0.02 + 0.02
+    ext = lua.table_from({'beats': lua.table_from(list(late)), 'downbeats': lua.table_from(list(downs))})
+    recall, ok = check('external 25 ms late', lua, dsp, truth, y, dict(opts, external=ext), want_down=0)
+    res, beats, _ = run(lua, dsp, y, dict(opts, external=ext))
+    lag = np.median([b - truth[np.argmin(np.abs(truth - b))] for b in beats]) * 1000
+    print(f'{"  median offset":<24} {lag:+.1f} ms')
+    results.append((recall, ok and abs(lag) <= 6))
+
     if len(sys.argv) > 1:
         import subprocess
         ff = os.environ.get('FFMPEG', 'ffmpeg')

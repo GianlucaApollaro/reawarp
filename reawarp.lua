@@ -535,6 +535,84 @@ local function nearest(list, t)
   return bi, best
 end
 
+-- Put the detector's beats on the attacks. Its beats can sit 10-40 ms off
+-- the attacks, by an amount that depends on the song (for some songs early,
+-- for most late), so the offset is measured in the audio: the attack
+-- strength (rise of the 1 ms peak envelope) averaged over the beats nearby,
+-- at each offset from -50 to +50 ms. Then, with snap, each beat moves to the
+-- strongest attack within 12 ms of its shifted place, when there is a clear one.
+function M.align_attacks(times, env, envrate, snap)
+  local n = #env
+  if #times < 8 or n < 100 then return times end
+  local function lmean(a, z)
+    local s, c = 0, 0
+    for k = max(1, a), min(n, z) do s = s + env[k]; c = c + 1 end
+    return c > 0 and s / c or 0
+  end
+  local rate = envrate / 1000 -- frames per ms
+  local d = {} -- rise strength at each frame: after (0..3 ms) over before (4..12 ms)
+  local w3, w4, w12 = max(1, round(3 * rate)), max(1, round(4 * rate)), max(2, round(12 * rate))
+  for k = 1, n do
+    local v = log((lmean(k, k + w3) + 1e-5) / (lmean(k - w12, k - w4) + 1e-5))
+    d[k] = v > 0 and v or 0
+  end
+  local function at(t) return d[floor(t * envrate + 1.5)] or 0 end
+  local R = round(50 * rate)
+  local W = 16 -- beats on each side for the local offset
+  local nb = #times
+  -- offset profile per beat (sum over the window computed with prefix sums)
+  local prof = {}
+  for o = -R, R do
+    local col = {}
+    local acc = 0
+    for i = 1, nb do
+      -- the peak of rise strength within 2 ms of the offset, so the profile is smooth
+      local t = times[i] + o / envrate
+      acc = acc + max(at(t - 1 / envrate), at(t), at(t + 1 / envrate))
+      col[i] = acc
+    end
+    prof[o] = col
+  end
+  local offs = {}
+  for i = 1, nb do
+    local a, z = max(1, i - W), min(nb, i + W)
+    local best, bo, sum, cnt = -1, 0, 0, 0
+    for o = -R, R do
+      local v = prof[o][z] - (a > 1 and prof[o][a - 1] or 0)
+      sum = sum + v; cnt = cnt + 1
+      -- prefer small offsets on ties (the detector is right on average)
+      v = v * (1 - 0.1 * abs(o) / R)
+      if v > best then best, bo = v, o end
+    end
+    -- only a clear peak counts
+    if best <= 1.3 * sum / cnt then bo = 0 end
+    offs[i] = bo
+  end
+  -- the offset changes slowly: median of 9 beats, so it adds no jitter
+  local out = {}
+  for i = 1, nb do
+    local w = {}
+    for k = max(1, i - 4), min(nb, i + 4) do w[#w + 1] = offs[k] end
+    local bo = median(w)
+    local a, z = max(1, i - W), min(nb, i + W)
+    local t = times[i] + bo / envrate
+    if snap then
+      local r = round(12 * rate)
+      local c = floor(t * envrate + 1.5)
+      local bk, bv = nil, 0
+      for k = c - r, c + r do
+        local v = d[k] or 0
+        if v > bv then bv, bk = v, k end
+      end
+      -- a clear attack: well above the typical strength at the beats
+      local typ = (prof[bo][z] - (a > 1 and prof[bo][a - 1] or 0)) / (z - a + 1)
+      if bk and bv >= 0.8 * typ then t = (bk - 1) / envrate end
+    end
+    out[i] = t
+  end
+  return out
+end
+
 -- most common number of beats between downbeats (2..8; with with_one, 1
 -- too: a downbeat on every beat), nil if too few
 function M.downbeat_gap(times, d, with_one)
@@ -820,6 +898,28 @@ function M.analyze(read, nsamp, sr, opts)
     -- (not when the downbeats fall on every beat: beats on the bar level)
     local gap = M.downbeat_gap(times, downs, true)
     if gap and gap >= 2 and gap <= 4 and not opts.no_anchor then times = M.anchor_downbeats(times, cand, downs, gap) end
+    -- an intro before the music's pulse starts: a few detections followed by a
+    -- gap the regularization filled with even beats. Those invented beats do
+    -- not match the music; drop the head, so the intro keeps the speed of the
+    -- first real beat
+    -- (at most 4 beats, then two or more invented ones in a row)
+    local lastfill
+    local run = 0
+    for i = 1, min(#times, 8) do
+      local _, dist = nearest(cand, times[i])
+      if dist and dist > 0.03 then
+        run = run + 1
+        if run >= 2 and i - run <= 4 then lastfill = i end
+      else
+        if lastfill then break end
+        run = 0
+      end
+    end
+    if lastfill and lastfill < #times - 8 then
+      local head = {}
+      for i = lastfill + 1, #times do head[#head + 1] = times[i] end
+      times = head
+    end
     P = median(intervals(times)) / spf
     bpm = 60 / (P * spf)
   else
@@ -832,10 +932,13 @@ function M.analyze(read, nsamp, sr, opts)
     times = {}
     for i, fr in ipairs(frames) do times[i] = (fr - 1) * spf end
   end
-  -- snap to the attack only for our own beats: external (neural) beats are
-  -- already placed within a few ms, and snapping them to the nearest attack
-  -- in busy music makes the intervals less regular
-  if opts.snap ~= false and not opts.external then times = M.snap(times, env, envrate, 0.03) end
+  if opts.external then
+    -- external (neural) beats: shift them onto the attacks by the offset
+    -- measured around each beat (per-beat snapping only with opts.ext_snap)
+    if opts.align ~= false then times = M.align_attacks(times, env, envrate, opts.ext_snap) end
+  elseif opts.snap ~= false then
+    times = M.snap(times, env, envrate, 0.03)
+  end
 
   -- enforce monotonic beats with a minimum gap
   local mingap = 0.4 * P * spf
