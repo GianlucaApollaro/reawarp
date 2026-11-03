@@ -1041,6 +1041,7 @@ STRINGS.en = {
   err_item = "%s: error - %s",
   err_unexpected = "Unexpected error: %s",
   busy = "reawarp is still working on the previous action.",
+  working = "reawarp: processing, please wait and do not edit the item until it finishes.",
   cancelled = "reawarp: action cancelled. Undo reverts what it had already changed.",
   select_item = "Select at least one audio item.",
 
@@ -1065,9 +1066,12 @@ STRINGS.en = {
   bt_required_ask = "reawarp uses the Beat This! beat detector, which is not installed. Install it now?",
   bt_install_first = "install Beat This! first (the installer opened in a new window), then run the action again",
   bt_required = "Beat This! is not installed. Install it from the reawarp menu, or choose 'builtin' as the beat detector in the settings (less reliable)",
-  bt_running = "Analyzing with Beat This!...",
   menu_install = "Install the Beat This! detector...",
-  install_started = "The Beat This! installer opened in a new window. It downloads about 300 MB and takes a few "
+  gpu_ask = "An NVIDIA graphics card was found (%s). Install the version of Beat This! that uses it?" .. "\n\n"
+    .. "Yes: GPU version. The analysis is about twice as fast, but it downloads about 2.5 GB and uses about 3 GB of disk." .. "\n"
+    .. "No: CPU version, about 300 MB." .. "\n"
+    .. "You can change this later by running the installer again.",
+  install_started = "The Beat This! installer opened in a new window. It downloads about %s and takes a few "
     .. "minutes. When it finishes, reawarp uses Beat This! automatically.",
   install_manual = "Open a terminal and run this installer:\n%s",
 
@@ -1141,6 +1145,7 @@ STRINGS["pt-BR"] = {
   err_item = "%s: erro - %s",
   err_unexpected = "Erro inesperado: %s",
   busy = "o reawarp ainda está trabalhando na ação anterior.",
+  working = "reawarp: processando, aguarde e não edite o item até terminar.",
   cancelled = "reawarp: ação cancelada. Desfazer reverte o que ela já tinha mudado.",
   select_item = "Selecione pelo menos um item de áudio.",
 
@@ -1165,9 +1170,12 @@ STRINGS["pt-BR"] = {
   bt_required_ask = "O reawarp usa o detector de batidas Beat This!, que não está instalado. Instalar agora?",
   bt_install_first = "instale o Beat This! primeiro (o instalador abriu numa nova janela) e rode a ação de novo",
   bt_required = "o Beat This! não está instalado. Instale-o pelo menu do reawarp, ou escolha 'builtin' como detector de batidas nas configurações (menos confiável)",
-  bt_running = "Analisando com o Beat This!...",
   menu_install = "Instalar o detector Beat This!...",
-  install_started = "O instalador do Beat This! abriu numa nova janela. Ele baixa cerca de 300 MB e leva alguns "
+  gpu_ask = "Foi encontrada uma placa de vídeo NVIDIA (%s). Instalar a versão do Beat This! que usa a placa?" .. "\n\n"
+    .. "Sim: versão para GPU. A análise fica cerca de duas vezes mais rápida, mas ela baixa cerca de 2,5 GB e ocupa cerca de 3 GB." .. "\n"
+    .. "Não: versão para CPU, cerca de 300 MB." .. "\n"
+    .. "Dá para mudar depois rodando o instalador de novo.",
+  install_started = "O instalador do Beat This! abriu numa nova janela. Ele baixa cerca de %s e leva alguns "
     .. "minutos. Quando terminar, o reawarp passa a usar o Beat This! automaticamente.",
   install_manual = "Abra um terminal e rode este instalador:\n%s",
 
@@ -1581,7 +1589,6 @@ local function run_beat_this(acc, t0, t1, nch)
   local base = string.format("%s/reawarp_%d_%d", tmp, os.time(), math.random(1e6))
   local wav, out, fail = base .. ".wav", base .. ".txt", base .. ".fail"
   if not write_wav(wav, acc, t0, t1, nch, 22050) then return nil, "cannot write " .. wav end
-  if r.osara_outputMessage then r.osara_outputMessage(txt("bt_running")) end
   local function q(x) return '"' .. native(x) .. '"' end
   local args = table.concat({ q(py), q(BACKEND .. "reawarp_beat_this.py"), q(wav), q(out) }, " ")
   local res, err
@@ -1621,19 +1628,39 @@ local function run_beat_this(acc, t0, t1, nch)
   return res
 end
 
+-- name of the NVIDIA graphics card, if any (Windows and Linux: macOS uses the
+-- GPU of Apple silicon with the standard PyTorch)
+local function nvidia_gpu()
+  if not IS_WIN and (r.GetOS():match("^OSX") or r.GetOS():match("^macOS")) then return nil end
+  local out = r.ExecProcess("nvidia-smi --query-gpu=name --format=csv,noheader", 5000) or ""
+  local code, rest = out:match("^(%-?%d+)%s*\n(.*)$")
+  if code ~= "0" then return nil end
+  local name = rest:match("^%s*([^\r\n]-)%s*[\r\n]") or rest:match("^%s*(.-)%s*$")
+  return name ~= "" and name or nil
+end
+
+-- Opens the installer in a terminal window. With an NVIDIA card, asks first
+-- whether to install the (much larger) GPU version. nil when cancelled.
 local function open_installer()
   local script = BACKEND .. (IS_WIN and "install_beat_this.bat" or "install_beat_this.sh")
   if not file_exists(script) then return txt("install_manual", native(script)) end
+  local kind, size = "cpu", "300 MB"
+  local gpu = nvidia_gpu()
+  if gpu then
+    local a = r.ShowMessageBox(txt("gpu_ask", gpu), "reawarp", 3) -- 6 yes, 7 no, 2 cancel
+    if a == 2 then return nil end
+    if a == 6 then kind, size = "gpu", "2.5 GB" end
+  end
   if IS_WIN then
-    r.ExecProcess(string.format('cmd.exe /c start "reawarp" "%s"', native(script)), -1)
+    r.ExecProcess(string.format('cmd.exe /c start "reawarp" "%s" %s', native(script), kind), -1)
   elseif r.GetOS():match("^OSX") or r.GetOS():match("^macOS") then
     os.execute(string.format('chmod +x "%s"; open -a Terminal "%s"', script, script))
   else
-    local ok = os.execute(string.format('chmod +x "%s"; (x-terminal-emulator -e "%s" || xterm -e "%s") &',
-      script, script, script))
-    if not ok then return txt("install_manual", script) end
+    local ok = os.execute(string.format('chmod +x "%s"; (x-terminal-emulator -e "%s" %s || xterm -e "%s" %s) &',
+      script, script, kind, script, kind))
+    if not ok then return txt("install_manual", script .. " " .. kind) end
   end
-  return txt("install_started")
+  return txt("install_started", size)
 end
 
 ---------------------------------------------------------------------------
@@ -1647,7 +1674,7 @@ local function analyze(it, s)
   if tostring(s.detector or "auto"):lower() ~= "builtin" and not backend_python() then
     if s._bt_install == nil then
       s._bt_install = r.ShowMessageBox(txt("bt_required_ask"), "reawarp", 4) == 6
-      if s._bt_install then open_installer() end
+      if s._bt_install and not open_installer() then s._bt_install = false end
     end
     return nil, s._bt_install and txt("bt_install_first") or txt("bt_required")
   end
@@ -2285,7 +2312,11 @@ function core.run(action)
     action = MAIN[c][1]
   end
   if action == "settings" then core.settings_dialog(s); return end
-  if action == "install" then report(open_installer()); return end
+  if action == "install" then
+    local m = open_installer()
+    if m then report(m) end
+    return
+  end
 
   local clock = r.time_precise or os.clock
   -- one action at a time: a running one refreshes this on every step
@@ -2299,6 +2330,9 @@ function core.run(action)
   -- the audio, Beat This!, the analysis) give REAPER its window back every
   -- 50 ms instead of freezing it. Running the same action again cancels it.
   if r.set_action_options then r.set_action_options(1) end
+  -- "please wait" (the analysis shows its report in a dialog at the end; the
+  -- song tempo action asks for the new BPM first, so it has no notice)
+  if r.osara_outputMessage and action ~= "retempo" then r.osara_outputMessage(txt("working")) end
   r.Undo_BeginBlock()
   local co = coroutine.create(function() return A[action](items, s) end)
   local finished = false
@@ -2326,7 +2360,10 @@ function core.run(action)
     if coroutine.status(co) ~= "dead" then return false end
     close()
     if not ok then report(txt("err_unexpected", tostring(result)))
-    elseif result ~= nil then report(result, spoken) end -- nil: cancelled in a dialog
+    elseif result ~= nil then
+      -- the analysis report is read in a dialog (it explains what to check next)
+      if action == "analyze" then msg(result) else report(result, spoken) end
+    end -- nil: cancelled in a dialog
     return true
   end
   if r.defer and not core.sync then

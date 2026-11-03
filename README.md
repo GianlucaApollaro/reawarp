@@ -59,7 +59,9 @@ the project (do not edit the item being analyzed). The result is announced throu
 without OSARA it is shown in a window. Dialogs only appear when reawarp needs an answer
 (time signature, removing a tempo map, a new BPM) and for the settings. Running the same
 action again while it works cancels it (Undo reverts what it had already changed); starting
-another reawarp action meanwhile only announces that it is still working.
+another reawarp action meanwhile only announces that it is still working. When an action starts,
+OSARA announces that reawarp is processing; the analysis report is still shown in a
+dialog, since it explains what to check next.
 
 | Action List entry | What it does |
 |---|---|
@@ -101,6 +103,12 @@ repairs it.
   777); if an older install left 777 folders, run the installer again. Temporary files
   of the analysis go to `/tmp`, not to REAPER's folder.
 - Analysis takes about 5 to 8 seconds per song instead of about 1.
+- With an NVIDIA graphics card (Windows, Linux), the installer asks whether to install
+  the GPU version: Beat This! runs about twice as fast (a 4-minute song: about 3 s
+  instead of 6 s), but it downloads about 2.5 GB and uses about 3 GB of disk. It picks
+  the CUDA version that the card's driver supports; if the GPU fails, reawarp uses the
+  CPU. On a Mac with Apple silicon the standard version already uses the GPU. To switch
+  between the versions, run the installer again and answer the question differently.
 - Copy the `backend` folder next to `reawarp.lua` for this to work.
 
 The warp does not pick a stretch algorithm: it uses the time stretch / pitch shift mode and

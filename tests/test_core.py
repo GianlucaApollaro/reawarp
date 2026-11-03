@@ -258,7 +258,8 @@ def main():
         lua, mock, r, core = setup(builtin=False)
         mock.P.answer = answer
         opened = []
-        r.ExecProcess = lambda cmd, timeout: opened.append(cmd) or ''
+        # count only the installer (the NVIDIA check runs nvidia-smi: none here)
+        r.ExecProcess = lambda cmd, timeout: ('1\n' if 'nvidia-smi' in cmd else opened.append(cmd) or '')
         src = lua.table_from({'sr': SR, 'samples': lua.table_from(y.tolist())})
         item = mock.add_item(1.0, src, 0.0, 20.0, 'song')
         core.run('warp')

@@ -87,7 +87,27 @@ def download(name):
             os.remove(path)
 
 
+def devices(torch):
+    """Devices to try, best first: an NVIDIA GPU (CUDA build of PyTorch), Apple
+    silicon (MPS), then the CPU. REAWARP_DEVICE=cpu|cuda|mps forces one."""
+    forced = os.environ.get("REAWARP_DEVICE", "").strip().lower()
+    if forced:
+        return [forced] if forced == "cpu" else [forced, "cpu"]
+    out = []
+    if torch.cuda.is_available():
+        out.append("cuda")
+    mps = getattr(torch.backends, "mps", None)
+    if mps is not None and mps.is_available():
+        out.append("mps")
+    return out + ["cpu"]
+
+
 def main(argv):
+    if len(argv) >= 1 and argv[0] == "--device":
+        import torch
+
+        print(devices(torch)[0])
+        return 0
     if len(argv) >= 1 and argv[0] == "--download":
         download(argv[1] if len(argv) > 1 else DEFAULT_CHECKPOINT)
         print("model ready")
@@ -103,7 +123,14 @@ def main(argv):
 
         torch.set_num_threads(max(1, os.cpu_count() or 1))
         y, sr = read_wav(src)
-        beat_logits, down_logits = Audio2Frames(checkpoint_path=checkpoint, device="cpu")(y, sr)
+        beat_logits = down_logits = None
+        for device in devices(torch):
+            try:
+                beat_logits, down_logits = Audio2Frames(checkpoint_path=checkpoint, device=device)(y, sr)
+                break
+            except Exception:
+                if device == "cpu":
+                    raise  # a GPU that fails (driver, memory) falls back to the CPU
         beats, downbeats = Postprocessor(type="minimal")(beat_logits, down_logits)
         beats = refine(beats, beat_logits)
         downbeats = [min(beats, key=lambda b: abs(b - d)) for d in downbeats] if len(beats) else []

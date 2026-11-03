@@ -61,7 +61,9 @@ continuar navegando pelo projeto (não edite o item que está sendo analisado). 
 o reawarp precisa de uma resposta (fórmula de compasso, remover um mapa de tempo, um novo
 BPM) e nas configurações. Rodar a mesma ação de novo enquanto ela trabalha a cancela
 (Desfazer reverte o que ela já tinha mudado); iniciar outra
-ação do reawarp nesse meio-tempo só avisa que ele ainda está trabalhando.
+ação do reawarp nesse meio-tempo só avisa que ele ainda está trabalhando. Quando uma ação
+começa, o OSARA avisa que o reawarp está processando; o relatório da análise continua
+numa janela, porque explica o que conferir em seguida.
 
 | Ação no Action List | O que faz |
 |---|---|
@@ -104,6 +106,12 @@ o instalador de novo o repara.
   recusam 777); se uma instalação antiga deixou pastas 777, rode o instalador de novo. Os
   arquivos temporários da análise vão para `/tmp`, não para a pasta do REAPER.
 - A análise leva de 5 a 8 segundos por música, em vez de cerca de 1.
+- Com uma placa de vídeo NVIDIA (Windows, Linux), o instalador pergunta se deve instalar
+  a versão para GPU: o Beat This! fica cerca de duas vezes mais rápido (uma música de 4
+  minutos: cerca de 3 s em vez de 6 s), mas ela baixa cerca de 2,5 GB e ocupa cerca de
+  3 GB. Ele escolhe a versão do CUDA que o driver da placa suporta; se a GPU falhar, o
+  reawarp usa a CPU. Num Mac com Apple silicon a versão normal já usa a GPU. Para trocar
+  de versão, rode o instalador de novo e responda a pergunta de outro jeito.
 - A pasta `backend` precisa ficar ao lado de `reawarp.lua`.
 
 O warp não escolhe algoritmo: usa o modo de time stretch / pitch shift e o modo dos stretch

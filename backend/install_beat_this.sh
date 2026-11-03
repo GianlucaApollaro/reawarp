@@ -16,7 +16,8 @@ finish() {
 }
 
 echo "reawarp: installing the Beat This! beat detector."
-echo "This downloads about 350 MB and needs about 1 GB of disk space."
+echo "This downloads about 350 MB and needs about 1 GB of disk space"
+echo "(the version for NVIDIA graphics cards: about 2.5 GB, and 3 GB of disk)."
 echo "Everything goes inside this folder; no Python installation is needed."
 echo
 
@@ -48,16 +49,47 @@ fi
 # --allow-existing keeps the installed packages and repairs an env whose folder was moved
 echo "Installing Python..."
 "$UV" venv env --python 3.12 --allow-existing
-echo "Installing PyTorch..."
 if [ "$(uname -s)" = "Darwin" ]; then
+  # the standard build also uses the GPU of Apple silicon (MPS)
+  echo "Installing PyTorch..."
   "$UV" pip install --python env/bin/python torch torchaudio
 else
-  "$UV" pip install --python env/bin/python torch torchaudio --index-url https://download.pytorch.org/whl/cpu
+  # gpu: PyTorch for NVIDIA graphics cards (about 2.5 GB); cpu: about 300 MB.
+  # Without an argument it keeps the kind already installed (cpu on a new install).
+  KIND="${1:-}"
+  CUR=$(env/bin/python -c "import torch; print(torch.version.cuda or 'cpu')" 2>/dev/null || true)
+  if [ -z "$KIND" ]; then
+    if [ -n "$CUR" ] && [ "$CUR" != cpu ]; then KIND=keep; else KIND=cpu; fi
+  fi
+  INDEX=cpu
+  if [ "$KIND" = gpu ]; then
+    # the newest CUDA build that the NVIDIA driver supports
+    DRV=$(nvidia-smi --query-gpu=driver_version --format=csv,noheader 2>/dev/null | head -n 1 | cut -d. -f1 || true)
+    case "$DRV" in
+      '' | *[!0-9]*) echo "No NVIDIA graphics card found: installing the CPU version." ;;
+      *) if [ "$DRV" -ge 580 ]; then INDEX=cu130
+         elif [ "$DRV" -ge 570 ]; then INDEX=cu128
+         elif [ "$DRV" -ge 560 ]; then INDEX=cu126
+         else echo "The NVIDIA driver is too old for the GPU version (update it to use the GPU): installing the CPU version."
+         fi ;;
+    esac
+  fi
+  if [ "$KIND" = keep ]; then
+    echo "PyTorch for the GPU is already installed."
+  else
+    REINSTALL=""
+    if [ "$INDEX" = cpu ] && [ -n "$CUR" ] && [ "$CUR" != cpu ]; then REINSTALL="--reinstall-package torch --reinstall-package torchaudio"; fi
+    if [ "$INDEX" != cpu ] && [ "$CUR" = cpu ]; then REINSTALL="--reinstall-package torch --reinstall-package torchaudio"; fi
+    if [ "$INDEX" = cpu ]; then echo "Installing PyTorch for the CPU..."; else echo "Installing PyTorch for the NVIDIA GPU ($INDEX), about 2.5 GB..."; fi
+    # shellcheck disable=SC2086
+    "$UV" pip install --python env/bin/python torch torchaudio --index-url "https://download.pytorch.org/whl/$INDEX" $REINSTALL
+  fi
 fi
 echo "Installing Beat This!..."
 "$UV" pip install --python env/bin/python beat-this==1.1.0
 echo "Downloading the model..."
 env/bin/python reawarp_beat_this.py --download
+echo "Beat This! will run on: $(env/bin/python reawarp_beat_this.py --device 2>/dev/null || echo cpu)"
 rm -rf uvcache
 trap - EXIT
 echo
