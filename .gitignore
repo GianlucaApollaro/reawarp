@@ -6,3 +6,6 @@ backend/python/
 backend/uv/
 backend/uvcache/
 dist/
+backend/install.log
+backend/install_status.txt
+backend/install_args.txt

@@ -1067,6 +1067,18 @@ STRINGS.en = {
   bt_install_first = "install Beat This! first (the installer opened in a new window), then run the action again",
   bt_required = "Beat This! is not installed. Install it from the reawarp menu, or choose 'builtin' as the beat detector in the settings (less reliable)",
   menu_install = "Install the Beat This! detector...",
+  menu_uninstall = "Uninstall the Beat This! detector...",
+  size_cpu = "0.8 GB",
+  install_ok = "Beat This! was installed. It runs on: %s. reawarp now uses it when analyzing.",
+  install_fail = "The Beat This! installation failed. It needs an internet connection; you can run it again to retry."
+    .. "\n\n" .. "End of the installation report:" .. "\n" .. "%s" .. "\n\n"
+    .. "Copy the whole report to the clipboard (to send it with a question)?",
+  copied = "The installation report was copied to the clipboard.",
+  uninstall_ask = "Uninstall Beat This!? This deletes the folders env, python, uv and models in" .. "\n" .. "%s" .. "\n"
+    .. "and frees about %s." .. "\n\n"
+    .. "reawarp stays installed. To analyze again, install Beat This! again from the reawarp menu.",
+  uninstalled = "Beat This! was uninstalled; about %s were freed.",
+  uninstall_left = "Some folders could not be deleted (close any program using them and try again): %s",
   gpu_ask = "An NVIDIA graphics card was found (%s). Install the version of Beat This! that uses it?" .. "\n\n"
     .. "Yes: GPU version. The analysis is about twice as fast, but it downloads about 2.5 GB and uses about 3 GB of disk." .. "\n"
     .. "No: CPU version, about 300 MB." .. "\n"
@@ -1171,6 +1183,18 @@ STRINGS["pt-BR"] = {
   bt_install_first = "instale o Beat This! primeiro (o instalador abriu numa nova janela) e rode a ação de novo",
   bt_required = "o Beat This! não está instalado. Instale-o pelo menu do reawarp, ou escolha 'builtin' como detector de batidas nas configurações (menos confiável)",
   menu_install = "Instalar o detector Beat This!...",
+  menu_uninstall = "Desinstalar o detector Beat This!...",
+  size_cpu = "0,8 GB",
+  install_ok = "O Beat This! foi instalado. Ele roda em: %s. O reawarp passa a usá-lo nas análises.",
+  install_fail = "A instalação do Beat This! falhou. Ela precisa de conexão com a internet; dá para rodá-la de novo."
+    .. "\n\n" .. "Final do relatório da instalação:" .. "\n" .. "%s" .. "\n\n"
+    .. "Copiar o relatório completo para a área de transferência (para enviar junto com uma dúvida)?",
+  copied = "O relatório da instalação foi copiado para a área de transferência.",
+  uninstall_ask = "Desinstalar o Beat This!? Isso apaga as pastas env, python, uv e models em" .. "\n" .. "%s" .. "\n"
+    .. "e libera cerca de %s." .. "\n\n"
+    .. "O reawarp continua instalado. Para analisar de novo, instale o Beat This! outra vez pelo menu do reawarp.",
+  uninstalled = "O Beat This! foi desinstalado; cerca de %s foram liberados.",
+  uninstall_left = "Algumas pastas não puderam ser apagadas (feche o que estiver usando essas pastas e tente de novo): %s",
   gpu_ask = "Foi encontrada uma placa de vídeo NVIDIA (%s). Instalar a versão do Beat This! que usa a placa?" .. "\n\n"
     .. "Sim: versão para GPU. A análise fica cerca de duas vezes mais rápida, mas ela baixa cerca de 2,5 GB e ocupa cerca de 3 GB." .. "\n"
     .. "Não: versão para CPU, cerca de 300 MB." .. "\n"
@@ -1643,8 +1667,62 @@ local function nvidia_gpu()
   return name ~= "" and name or nil
 end
 
--- Opens the installer in a terminal window. With an NVIDIA card, asks first
--- whether to install the (much larger) GPU version. nil when cancelled.
+local function is_mac() return r.GetOS():match("^OSX") or r.GetOS():match("^macOS") end
+
+-- text to the clipboard: SWS when installed, else the system's own tool
+local function copy_to_clipboard(text)
+  if r.CF_SetClipboard then r.CF_SetClipboard(text); return end
+  local tmp = (os.getenv("TEMP") or os.getenv("TMPDIR") or "/tmp"):gsub("[\\/]$", "") .. "/reawarp_clip.txt"
+  local f = io.open(tmp, "wb")
+  if not f then return end
+  f:write(text)
+  f:close()
+  if IS_WIN then
+    r.ExecProcess(string.format('cmd.exe /c clip < "%s"', native(tmp)), 10000)
+  elseif is_mac() then
+    os.execute(string.format('pbcopy < "%s"', tmp))
+  else
+    os.execute(string.format('(wl-copy < "%s" || xclip -selection clipboard < "%s" || xsel -b < "%s") 2>/dev/null',
+      tmp, tmp, tmp))
+  end
+  os.remove(tmp)
+end
+
+-- The installer writes install_status.txt when it ends ("ok <device>" or
+-- "fail") and the details to install.log: this shows the result in a dialog.
+local function watch_installer()
+  local status, logf = BACKEND .. "install_status.txt", BACKEND .. "install.log"
+  local start = (r.time_precise or os.clock)()
+  local function poll()
+    local f = io.open(status, "r")
+    if f then
+      local line = f:read("l") or ""
+      f:close()
+      os.remove(status)
+      if line:match("^ok") then
+        msg(txt("install_ok", line:match("^ok%s+(%S+)") or "cpu"))
+      else
+        local full = ""
+        local lf = io.open(logf, "r")
+        if lf then full = lf:read("a") or ""; lf:close() end
+        local lines = {}
+        for l in full:gmatch("[^\r\n]+") do lines[#lines + 1] = l end
+        local tail = table.concat(lines, "\n", math.max(1, #lines - 14))
+        if r.ShowMessageBox(txt("install_fail", tail), "reawarp", 4) == 6 then
+          copy_to_clipboard(full)
+          if r.osara_outputMessage then r.osara_outputMessage(txt("copied")) else msg(txt("copied")) end
+        end
+      end
+      return
+    end
+    if (r.time_precise or os.clock)() - start < 7200 and r.defer then r.defer(poll) end
+  end
+  if r.defer then r.defer(poll) end
+end
+
+-- Opens the installer in a terminal window, which closes by itself at the end
+-- (reawarp then shows the result). With an NVIDIA card, asks first whether to
+-- install the (much larger) GPU version. nil when cancelled.
 local function open_installer()
   local script = BACKEND .. (IS_WIN and "install_beat_this.bat" or "install_beat_this.sh")
   if not file_exists(script) then return txt("install_manual", native(script)) end
@@ -1655,16 +1733,78 @@ local function open_installer()
     if a == 2 then return nil end
     if a == 6 then kind, size = "gpu", "2.5 GB" end
   end
+  os.remove(BACKEND .. "install_status.txt")
   if IS_WIN then
-    r.ExecProcess(string.format('cmd.exe /c start "reawarp" "%s" %s', native(script), kind), -1)
-  elseif r.GetOS():match("^OSX") or r.GetOS():match("^macOS") then
+    r.ExecProcess(string.format('cmd.exe /c start "reawarp" "%s" %s auto', native(script), kind), -1)
+  elseif is_mac() then
+    -- Terminal cannot pass arguments: the script reads them from this file
+    local f = io.open(BACKEND .. "install_args.txt", "w")
+    if f then f:write(kind, " auto\n"); f:close() end
     os.execute(string.format('chmod +x "%s"; open -a Terminal "%s"', script, script))
   else
-    local ok = os.execute(string.format('chmod +x "%s"; (x-terminal-emulator -e "%s" %s || xterm -e "%s" %s) &',
+    local ok = os.execute(string.format('chmod +x "%s"; (x-terminal-emulator -e "%s" %s auto || xterm -e "%s" %s auto) &',
       script, script, kind, script, kind))
     if not ok then return txt("install_manual", script .. " " .. kind) end
   end
+  watch_installer()
   return txt("install_started", size)
+end
+
+local BT_DIRS = { "env", "python", "uv", "models", "uvcache" }
+
+local function dir_exists(path)
+  local parent, name = path:match("^(.*)[\\/]([^\\/]+)$")
+  r.EnumerateSubdirectories(parent, -1) -- REAPER caches the listing: read it again
+  for i = 0, math.huge do
+    local d = r.EnumerateSubdirectories(parent, i)
+    if not d then return false end
+    if d == name then return true end
+  end
+end
+
+local function bt_installed()
+  for _, d in ipairs(BT_DIRS) do
+    if dir_exists(BACKEND .. d) then return true end
+  end
+  return false
+end
+
+-- about how much the installed Beat This! uses (the GPU build is much larger)
+local function bt_size()
+  for _, v in ipairs({ "env/Lib/site-packages/torch/version.py", "env/lib/python3.12/site-packages/torch/version.py" }) do
+    local f = io.open(BACKEND .. v, "r")
+    if f then
+      local t = f:read("a") or ""
+      f:close()
+      if t:match("cuda[^\n]-=%s*['\"]%d") then return "3 GB" end
+      return txt("size_cpu")
+    end
+  end
+  return txt("size_cpu")
+end
+
+local function uninstall_beat_this()
+  if not bt_installed() then return txt("bt_missing") end
+  local size = bt_size()
+  if r.ShowMessageBox(txt("uninstall_ask", native(BACKEND), size), "reawarp", 4) ~= 6 then return nil end
+  for _, d in ipairs(BT_DIRS) do
+    local path = BACKEND .. d
+    if dir_exists(path) then
+      if IS_WIN then
+        r.ExecProcess(string.format('cmd.exe /c rmdir /s /q "%s"', native(path)), 600000)
+      else
+        os.execute(string.format('rm -rf "%s"', path))
+      end
+    end
+  end
+  os.remove(BACKEND .. "install.log")
+  os.remove(BACKEND .. "install_status.txt")
+  local left = {}
+  for _, d in ipairs(BT_DIRS) do
+    if dir_exists(BACKEND .. d) then left[#left + 1] = d end
+  end
+  if #left > 0 then return txt("uninstall_left", table.concat(left, ", ")) end
+  return txt("uninstalled", size)
 end
 
 ---------------------------------------------------------------------------
@@ -2293,6 +2433,7 @@ local MAIN = {
   { "restore", "menu_restore" },
   { "settings", "menu_settings" },
   { "install", "menu_install" },
+  { "uninstall", "menu_uninstall" }, -- only listed when Beat This! is installed
 }
 
 ---------------------------------------------------------------------------
@@ -2309,11 +2450,13 @@ function core.run(action)
   local s = core.load_settings()
   set_lang(s.lang)
   if action == "menu" then
-    local names = {}
-    for i, m in ipairs(MAIN) do names[i] = txt(m[2]) end
+    local names, list = {}, {}
+    for _, m in ipairs(MAIN) do
+      if m[1] ~= "uninstall" or bt_installed() then list[#list + 1] = m; names[#names + 1] = txt(m[2]) end
+    end
     local c = popup(names)
     if c == 0 then return end
-    action = MAIN[c][1]
+    action = list[c][1]
   end
   if action == "settings" then core.settings_dialog(s); return end
   if action == "install" then
@@ -2326,6 +2469,11 @@ function core.run(action)
   -- one action at a time: a running one refreshes this on every step
   local busy = tonumber(r.GetExtState("reawarp", "busy"))
   if busy and clock() - busy >= 0 and clock() - busy < 3 then report(txt("busy")); return end
+  if action == "uninstall" then
+    local m = uninstall_beat_this()
+    if m then msg(m) end
+    return
+  end
 
   local items = selected_takes()
   if #items == 0 and action ~= "retempo" then report(txt("select_item")); return end

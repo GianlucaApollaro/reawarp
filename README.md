@@ -97,7 +97,12 @@ repairs it.
 - Install: in the reawarp menu choose *Install the Beat This! detector*, or run
   `backend/install_beat_this.bat` (Windows) or `backend/install_beat_this.sh` (macOS /
   Linux). It downloads about 350 MB and uses about 800 MB of disk, all inside `backend/`
-  (`uv`, `python`, `env` and `models`). To uninstall, delete those four folders.
+  (`uv`, `python`, `env` and `models`). To uninstall, choose *Uninstall the Beat This! detector* in the
+  reawarp menu (it appears once Beat This! is installed): it deletes those four folders and
+  frees about 0.8 GB (3 GB for the GPU version); reawarp itself stays installed.
+  The installer window closes by itself at the end, and reawarp shows the result in a
+  dialog; if it fails, the dialog shows the end of the report and offers to copy the
+  whole report (`backend/install.log`) to the clipboard.
   On macOS / Linux the installer leaves nothing writable by everyone (folders 775,
   files 664), so REAPER's folder can be synced to the cloud (MEGA and others refuse
   777); if an older install left 777 folders, run the installer again. Temporary files
