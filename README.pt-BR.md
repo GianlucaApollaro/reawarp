@@ -284,4 +284,4 @@ copyright original.
 
 ## Agradecimentos
 
-- A Vitor Bruski ([vrivrixd](https://github.com/vrivrixd)), pela tradução para o espanhol.
+- A [vrivrixd](https://github.com/vrivrixd), pela tradução para o espanhol.

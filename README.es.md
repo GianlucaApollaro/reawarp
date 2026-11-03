@@ -297,4 +297,4 @@ copyright original.
 
 ## Agradecimientos
 
-- A Vitor Bruski ([vrivrixd](https://github.com/vrivrixd)), por la traducción al español.
+- A [vrivrixd](https://github.com/vrivrixd), por la traducción al español.

@@ -278,4 +278,4 @@ must be kept.
 
 ## Acknowledgments
 
-- Vitor Bruski ([vrivrixd](https://github.com/vrivrixd)), for the Spanish translation.
+- [vrivrixd](https://github.com/vrivrixd), for the Spanish translation.
