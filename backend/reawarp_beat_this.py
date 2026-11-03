@@ -61,11 +61,35 @@ def refine(times, logits, fps=50):
     return out
 
 
+def cached_checkpoint(name):
+    """Where torch.hub keeps a downloaded checkpoint (models/hub/checkpoints/)."""
+    return os.path.join(os.environ["TORCH_HOME"], "hub", "checkpoints", f"beat_this-{name}.ckpt")
+
+
+def download(name):
+    """Download the model and check that it loads.
+
+    torch.hub reuses a file already in the cache, so a download that arrived
+    damaged (connection dropped, proxy, antivirus) would fail on every run:
+    when the cached file does not load, it is deleted and downloaded again.
+    """
+    from beat_this.inference import load_checkpoint
+
+    for attempt in (1, 2, 3):
+        try:
+            load_checkpoint(name)
+            return
+        except Exception as e:
+            path = cached_checkpoint(name)
+            if attempt == 3 or not os.path.exists(path):
+                raise
+            print(f"The downloaded model is damaged ({type(e).__name__}); downloading it again...")
+            os.remove(path)
+
+
 def main(argv):
     if len(argv) >= 1 and argv[0] == "--download":
-        from beat_this.inference import load_checkpoint
-
-        load_checkpoint(argv[1] if len(argv) > 1 else DEFAULT_CHECKPOINT)
+        download(argv[1] if len(argv) > 1 else DEFAULT_CHECKPOINT)
         print("model ready")
         return 0
     if len(argv) < 2:
