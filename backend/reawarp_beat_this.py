@@ -117,6 +117,12 @@ def main(argv):
         return 2
     src, dst = argv[0], argv[1]
     checkpoint = argv[2] if len(argv) > 2 else DEFAULT_CHECKPOINT
+    # tells reawarp (which runs this in the background, without a window) that
+    # Python started; reawarp deletes it
+    try:
+        open(dst + ".run", "w").close()
+    except OSError:
+        pass
     try:
         import torch
         from beat_this.inference import Audio2Frames, Postprocessor

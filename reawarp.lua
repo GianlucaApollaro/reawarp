@@ -1587,17 +1587,20 @@ local function run_beat_this(acc, t0, t1, nch)
   -- temporary files outside REAPER's folder (it may be synced to the cloud)
   local tmp = (os.getenv("TEMP") or os.getenv("TMPDIR") or (not IS_WIN and "/tmp") or BACKEND):gsub("[\\/]$", "")
   local base = string.format("%s/reawarp_%d_%d", tmp, os.time(), math.random(1e6))
-  local wav, out, fail = base .. ".wav", base .. ".txt", base .. ".fail"
+  local wav, out, fail, run = base .. ".wav", base .. ".txt", base .. ".fail", base .. ".txt.run"
   if not write_wav(wav, acc, t0, t1, nch, 22050) then return nil, "cannot write " .. wav end
   local function q(x) return '"' .. native(x) .. '"' end
   local args = table.concat({ q(py), q(BACKEND .. "reawarp_beat_this.py"), q(wav), q(out) }, " ")
   local res, err
   if coroutine.isyieldable() and r.defer and not core.sync then
-    -- in the background: REAPER keeps responding while it runs. If Python
-    -- does not even start, the shell writes the .fail file.
+    -- in the background: REAPER keeps responding while it runs.
     local launch
     if IS_WIN then
-      launch = string.format('cmd.exe /D /S /C "%s || echo backend did not start> %s"', args, q(fail))
+      -- pythonw: no console window over REAPER. Without a shell around it, a
+      -- Python that does not start is noticed by the missing .run file, which
+      -- the backend writes first thing.
+      local pyw = py:gsub("python%.exe$", "pythonw.exe")
+      launch = args:gsub('^"[^"]*"', function() return q(file_exists(pyw) and pyw or py) end, 1)
     else
       launch = string.format("/bin/sh -c '%s || echo backend did not start > %s'", args, q(fail))
     end
@@ -1605,15 +1608,15 @@ local function run_beat_this(acc, t0, t1, nch)
     local start = r.time_precise()
     while true do
       coroutine.yield()
-      local done
       res, err = read_bt_output(out)
       if res or err then break end
-      if file_exists(fail) then
-        res, err = read_bt_output(out) -- written just before the shell's line?
+      local waited = r.time_precise() - start
+      if file_exists(fail) or (waited > 60 and not file_exists(run)) then
+        res, err = read_bt_output(out) -- finished just now?
         if not (res or err) then err = "Beat This! did not start (" .. native(py) .. ")" end
         break
       end
-      if r.time_precise() - start > 600 then err = "timeout"; break end
+      if waited > 600 then err = "timeout"; break end
     end
   else
     local ret = r.ExecProcess(args, 600000) or ""
@@ -1623,6 +1626,7 @@ local function run_beat_this(acc, t0, t1, nch)
   os.remove(wav)
   os.remove(out)
   os.remove(fail)
+  os.remove(run)
   if err then return nil, err end
   if not res or #res.beats < 4 then return nil, "no beats" end
   return res
