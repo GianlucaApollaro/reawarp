@@ -1,19 +1,12 @@
 -- @description reawarp: audio warping (beat detection, warp, tempo map)
--- @version 0.1.3
+-- @version 0.1.4
 -- @author Gabriel Schuck
 -- @license GPL-3.0-or-later
 -- @links
 --   GitHub https://github.com/gabrielschuck/reawarp
 -- @changelog
---   REAPER no longer freezes during the actions: Beat This! runs in the background and
---   the results are announced through OSARA (the analysis report stays in a dialog).
---   Beats are shifted onto the attacks (Beat This! can sit 10-40 ms off them).
---   Invented beats in an intro before the pulse are dropped.
---   Optional GPU version of Beat This! for NVIDIA cards (about twice as fast).
---   Uninstall Beat This! from the menu; the installer closes by itself and shows the
---   result (with the report to copy when it fails); a damaged model download is
---   downloaded again.
---   Linux/macOS: no world-writable files (cloud-synced folders), temporary files in /tmp.
+--   Spanish translation (by vrivrixd): chosen automatically when REAPER or the system
+--   is in Spanish, or by typing es in the Language setting. README in Spanish.
 
 -- reawarp
 -- Audio warping for REAPER: detects the beats of a song (including songs with a
