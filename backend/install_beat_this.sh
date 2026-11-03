@@ -6,6 +6,9 @@ cd "$(dirname "$0")" || exit 1
 HERE=$(pwd)
 
 finish() {
+  # nothing here writable by everyone (folders synced to the cloud, as with
+  # MEGA, refuse 777): 775 for folders, 664 for files
+  chmod -R o-w "$HERE" 2>/dev/null
   echo
   printf 'Press Enter to close. '
   read -r _

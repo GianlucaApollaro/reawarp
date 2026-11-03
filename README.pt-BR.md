@@ -90,6 +90,10 @@ o instalador de novo o repara.
   rode `backend/install_beat_this.bat` (Windows) ou `backend/install_beat_this.sh` (macOS /
   Linux). Ele baixa cerca de 350 MB e ocupa cerca de 800 MB, tudo dentro de `backend/`
   (`uv`, `python`, `env` e `models`). Para desinstalar, apague essas quatro pastas.
+  No macOS / Linux o instalador não deixa nada com escrita para todos (pastas 775,
+  arquivos 664), então a pasta do REAPER pode ser sincronizada na nuvem (o MEGA e outros
+  recusam 777); se uma instalação antiga deixou pastas 777, rode o instalador de novo. Os
+  arquivos temporários da análise vão para `/tmp`, não para a pasta do REAPER.
 - A análise leva de 5 a 8 segundos por música, em vez de cerca de 1.
 - A pasta `backend` precisa ficar ao lado de `reawarp.lua`.
 

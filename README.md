@@ -88,6 +88,10 @@ repairs it.
   `backend/install_beat_this.bat` (Windows) or `backend/install_beat_this.sh` (macOS /
   Linux). It downloads about 350 MB and uses about 800 MB of disk, all inside `backend/`
   (`uv`, `python`, `env` and `models`). To uninstall, delete those four folders.
+  On macOS / Linux the installer leaves nothing writable by everyone (folders 775,
+  files 664), so REAPER's folder can be synced to the cloud (MEGA and others refuse
+  777); if an older install left 777 folders, run the installer again. Temporary files
+  of the analysis go to `/tmp`, not to REAPER's folder.
 - Analysis takes about 5 to 8 seconds per song instead of about 1.
 - Copy the `backend` folder next to `reawarp.lua` for this to work.
 

@@ -1521,7 +1521,8 @@ end
 local function run_beat_this(acc, t0, t1, nch)
   local py = backend_python()
   if not py then return nil end
-  local tmp = (os.getenv("TEMP") or os.getenv("TMPDIR") or BACKEND):gsub("[\\/]$", "")
+  -- temporary files outside REAPER's folder (it may be synced to the cloud)
+  local tmp = (os.getenv("TEMP") or os.getenv("TMPDIR") or (not IS_WIN and "/tmp") or BACKEND):gsub("[\\/]$", "")
   local base = string.format("%s/reawarp_%d_%d", tmp, os.time(), math.random(1e6))
   local wav, out = base .. ".wav", base .. ".txt"
   if not write_wav(wav, acc, t0, t1, nch, 22050) then return nil, "cannot write " .. wav end
