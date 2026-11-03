@@ -1,9 +1,9 @@
 # reawarp
 
-*[Leia em português](README.pt-BR.md)*
+*[Leia em português](README.pt-BR.md) · [Leer en español](README.es.md)*
 
 > reawarp is still an experimental version: it has been tested on a
-> number of real songs, but expect rough edges. Contributions, bug reports and suggestions
+> number of real songs, but it may still get some of them wrong. Contributions, bug reports and suggestions
 > are very welcome; see [Contributing](#contributing).
 >
 > Contact: gabrielschuck.tecladista@gmail.com
@@ -17,7 +17,8 @@ of a song (including songs whose tempo drifts or changes) and either
 Written in Lua; beats are detected by the neural detector
 [Beat This!](https://github.com/CPJKU/beat_this), installed with one click (no Python
 installation needed). The whole interface uses REAPER's native menus and dialogs, so it works with
-screen readers (OSARA).
+screen readers (OSARA). Messages are in English, Portuguese or Spanish, as set in the
+*Language* setting.
 
 ## Installation
 
@@ -197,7 +198,7 @@ Each action is a single undo step (Ctrl+Z).
 
 All messages are in the `STRINGS` table near the top of section 2 of `reawarp.lua`.
 English (`STRINGS.en`) is the reference. To add a language, copy that table under a new
-code (for example `STRINGS["es"]`), translate the values (keep every `%s`, `%d`, `%.2f`...
+code (for example `STRINGS["fr"]`), translate the values (keep every `%s`, `%d`, `%.2f`...
 in the same order) and, for automatic detection, add the language to `detect_lang`. Users
 can also pick it by typing its code in the *Language* setting. Keys missing from a
 translation fall back to English. Setting

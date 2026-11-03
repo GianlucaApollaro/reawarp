@@ -1,9 +1,9 @@
 # reawarp
 
-*[Read in English](README.md)*
+*[Read in English](README.md) · [Leer en español](README.es.md)*
 
-> O reawarp ainda é uma versão experimental: foi testado com várias
-> músicas reais, mas pode ter arestas. Contribuições, relatos de problemas e sugestões são
+> O reawarp ainda é uma versão experimental: foi testado com várias músicas reais, mas
+> ainda pode errar em algumas. Contribuições, relatos de problemas e sugestões são
 > muito bem-vindos; veja [Como contribuir](#como-contribuir).
 >
 > Contato: gabrielschuck.tecladista@gmail.com
@@ -204,7 +204,7 @@ Cada ação é um único passo de desfazer (Ctrl+Z).
 
 Todas as mensagens estão na tabela `STRINGS`, no início da seção 2 de `reawarp.lua`. O
 inglês (`STRINGS.en`) é a referência. Para adicionar um idioma, copie essa tabela com um
-novo código (por exemplo `STRINGS["es"]`), traduza os valores (mantendo cada `%s`, `%d`,
+novo código (por exemplo `STRINGS["fr"]`), traduza os valores (mantendo cada `%s`, `%d`,
 `%.2f`... na mesma ordem) e, para a detecção automática, inclua o idioma em `detect_lang`.
 O usuário também pode escolhê-lo digitando o código na configuração *Idioma*. Chaves que
 faltarem numa tradução usam o inglês. Os nomes dos campos das configurações não podem ter

@@ -89,7 +89,7 @@ def main():
 
     os.makedirs(os.path.join(ROOT, 'dist'), exist_ok=True)
     zpath = os.path.join(ROOT, 'dist', f'reawarp-{version}.zip')
-    files = [MAIN, 'README.md', 'README.pt-BR.md', 'LICENSE'] + ['actions/' + n for _, n in actions] \
+    files = [MAIN, 'README.md', 'README.pt-BR.md', 'README.es.md', 'LICENSE'] + ['actions/' + n for _, n in actions] \
         + sorted({rel for rel, _ in BACKEND})
     with zipfile.ZipFile(zpath, 'w', zipfile.ZIP_DEFLATED) as z:
         for rel in files:
