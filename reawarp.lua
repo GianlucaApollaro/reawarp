@@ -534,8 +534,9 @@ local function nearest(list, t)
   return bi, best
 end
 
--- most common number of beats between downbeats (2..8), nil if too few
-function M.downbeat_gap(times, d)
+-- most common number of beats between downbeats (2..8; with with_one, 1
+-- too: a downbeat on every beat), nil if too few
+function M.downbeat_gap(times, d, with_one)
   local idx = {}
   for _, t in ipairs(d) do
     local j, dist = nearest(times, t)
@@ -545,7 +546,7 @@ function M.downbeat_gap(times, d)
   local count, best, bg = {}, 0, nil
   for k = 2, #idx do
     local g = idx[k] - idx[k - 1]
-    if g >= 2 and g <= 8 then
+    if g >= (with_one and 1 or 2) and g <= 8 then
       count[g] = (count[g] or 0) + 1
       if count[g] > best then best, bg = count[g], g end
     end
@@ -568,15 +569,23 @@ function M.external_beats(ext, ref_bpm)
   -- one and a half beats per bar)
   local gap = M.downbeat_gap(b, d)
   if ratio > 1.45 and not (gap and gap % 2 == 1) then
-    -- double tempo: keep every other beat, in the phase that holds the downbeats
-    local cnt = { 0, 0 }
+    -- double tempo: keep every other beat, in the phase that holds the
+    -- downbeats. A missed or added beat, or a sudden change of tempo, flips
+    -- the parity of the indexes, so the count restarts at each downbeat
+    -- (one at least two beats after the last one used).
+    local reset = {}
+    local last
     for i, t in ipairs(b) do
       local _, dist = nearest(d, t)
-      if dist <= 0.07 then cnt[(i - 1) % 2 + 1] = cnt[(i - 1) % 2 + 1] + 1 end
+      if dist and dist <= 0.07 and (not last or i - last >= 2) then reset[i] = true; last = i end
     end
-    local nb, keep = {}, cnt[2] > cnt[1] and 2 or 1
+    local first = 1
+    for i = 1, #b do if reset[i] then first = i; break end end
+    local nb, c = {}, 0
     for i = 1, #b do
-      if (i - keep) % 2 == 0 then nb[#nb + 1] = b[i] else dropped[#dropped + 1] = b[i] end
+      if reset[i] then c = 0 elseif i < first then c = first - i end
+      if c % 2 == 0 then nb[#nb + 1] = b[i] else dropped[#dropped + 1] = b[i] end
+      c = c + 1
     end
     b = nb
   elseif ratio < 0.69 then
@@ -807,8 +816,9 @@ function M.analyze(read, nsamp, sr, opts)
       return per[k] * spf
     end)
     -- beats per bar as the detector counts them (2 for 2/4, unlike the meter)
-    local gap = M.downbeat_gap(times, downs)
-    if gap and gap <= 4 and not opts.no_anchor then times = M.anchor_downbeats(times, cand, downs, gap) end
+    -- (not when the downbeats fall on every beat: beats on the bar level)
+    local gap = M.downbeat_gap(times, downs, true)
+    if gap and gap >= 2 and gap <= 4 and not opts.no_anchor then times = M.anchor_downbeats(times, cand, downs, gap) end
     P = median(intervals(times)) / spf
     bpm = 60 / (P * spf)
   else
