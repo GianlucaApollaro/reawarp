@@ -25,6 +25,26 @@
         <source file="backend/install_beat_this.sh" platform="darwin">https://github.com/gabrielschuck/reawarp/raw/v0.1.0/backend/install_beat_this.sh</source>
         <source file="backend/install_beat_this.sh" platform="linux">https://github.com/gabrielschuck/reawarp/raw/v0.1.0/backend/install_beat_this.sh</source>
       </version>
+      <version name="0.1.1" author="Gabriel Schuck" time="2026-11-03T01:11:18Z">
+        <changelog>If Beat This! fails, the analysis now stops with an error instead of silently
+using the built-in detector (which can drift onto off-beats).
+The Beat This! installer now repairs an existing installation (for example after
+its folder was moved), reusing what is already downloaded.</changelog>
+        <source main="main">https://github.com/gabrielschuck/reawarp/raw/v0.1.1/reawarp.lua</source>
+        <source file="actions/reawarp - Analyze beats.lua" main="main">https://github.com/gabrielschuck/reawarp/raw/v0.1.1/actions/reawarp%20-%20Analyze%20beats.lua</source>
+        <source file="actions/reawarp - Warp item to project tempo.lua" main="main">https://github.com/gabrielschuck/reawarp/raw/v0.1.1/actions/reawarp%20-%20Warp%20item%20to%20project%20tempo.lua</source>
+        <source file="actions/reawarp - Tempo map from item.lua" main="main">https://github.com/gabrielschuck/reawarp/raw/v0.1.1/actions/reawarp%20-%20Tempo%20map%20from%20item.lua</source>
+        <source file="actions/reawarp - Change song tempo.lua" main="main">https://github.com/gabrielschuck/reawarp/raw/v0.1.1/actions/reawarp%20-%20Change%20song%20tempo.lua</source>
+        <source file="actions/reawarp - Double BPM.lua" main="main">https://github.com/gabrielschuck/reawarp/raw/v0.1.1/actions/reawarp%20-%20Double%20BPM.lua</source>
+        <source file="actions/reawarp - Halve BPM.lua" main="main">https://github.com/gabrielschuck/reawarp/raw/v0.1.1/actions/reawarp%20-%20Halve%20BPM.lua</source>
+        <source file="actions/reawarp - Set downbeat at edit cursor.lua" main="main">https://github.com/gabrielschuck/reawarp/raw/v0.1.1/actions/reawarp%20-%20Set%20downbeat%20at%20edit%20cursor.lua</source>
+        <source file="actions/reawarp - Restore original items.lua" main="main">https://github.com/gabrielschuck/reawarp/raw/v0.1.1/actions/reawarp%20-%20Restore%20original%20items.lua</source>
+        <source file="actions/reawarp - Settings.lua" main="main">https://github.com/gabrielschuck/reawarp/raw/v0.1.1/actions/reawarp%20-%20Settings.lua</source>
+        <source file="backend/reawarp_beat_this.py">https://github.com/gabrielschuck/reawarp/raw/v0.1.1/backend/reawarp_beat_this.py</source>
+        <source file="backend/install_beat_this.bat" platform="windows">https://github.com/gabrielschuck/reawarp/raw/v0.1.1/backend/install_beat_this.bat</source>
+        <source file="backend/install_beat_this.sh" platform="darwin">https://github.com/gabrielschuck/reawarp/raw/v0.1.1/backend/install_beat_this.sh</source>
+        <source file="backend/install_beat_this.sh" platform="linux">https://github.com/gabrielschuck/reawarp/raw/v0.1.1/backend/install_beat_this.sh</source>
+      </version>
     </reapack>
   </category>
 </index>

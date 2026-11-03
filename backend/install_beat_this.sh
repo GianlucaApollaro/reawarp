@@ -42,7 +42,9 @@ if [ ! -x "$UV" ]; then
   tar -xzf uv/uv.tar.gz -C uv --strip-components=1
   rm uv/uv.tar.gz
 fi
-[ -x env/bin/python ] || { echo "Installing Python..."; "$UV" venv env --python 3.12; }
+# --allow-existing keeps the installed packages and repairs an env whose folder was moved
+echo "Installing Python..."
+"$UV" venv env --python 3.12 --allow-existing
 echo "Installing PyTorch..."
 if [ "$(uname -s)" = "Darwin" ]; then
   "$UV" pip install --python env/bin/python torch torchaudio

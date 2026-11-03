@@ -31,10 +31,9 @@ if not exist "%UV%" (
 )
 if not exist "%UV%" goto fail
 
-if not exist "env\Scripts\python.exe" (
-  echo Installing Python...
-  "%UV%" venv env --python 3.12 || goto fail
-)
+rem --allow-existing keeps the installed packages and repairs an env whose folder was moved
+echo Installing Python...
+"%UV%" venv env --python 3.12 --allow-existing || goto fail
 echo Installing PyTorch (CPU)...
 "%UV%" pip install --python "env\Scripts\python.exe" torch torchaudio --index-url https://download.pytorch.org/whl/cpu || goto fail
 echo Installing Beat This!...

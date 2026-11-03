@@ -1,11 +1,14 @@
 -- @description reawarp: audio warping (beat detection, warp, tempo map)
--- @version 0.1.0
+-- @version 0.1.1
 -- @author Gabriel Schuck
 -- @license GPL-3.0-or-later
 -- @links
 --   GitHub https://github.com/gabrielschuck/reawarp
 -- @changelog
---   First release (experimental).
+--   If Beat This! fails, the analysis now stops with an error instead of silently
+--   using the built-in detector (which can drift onto off-beats).
+--   The Beat This! installer now repairs an existing installation (for example after
+--   its folder was moved), reusing what is already downloaded.
 
 -- reawarp
 -- Audio warping for REAPER: detects the beats of a song (including songs with a
@@ -776,7 +779,7 @@ STRINGS.en = {
   set_detector = "Beat detector (auto=Beat This! or builtin)",
   det_note = " Detector: %s.",
   det_builtin = "built-in",
-  bt_failed = " Beat This! failed (%s); the built-in detector was used.",
+  bt_failed = "Beat This! failed (%s). To repair it, run 'Install the Beat This! detector...' from the reawarp menu again (it reuses what is already downloaded)",
   bt_missing = "Beat This! is not installed",
   bt_required_ask = "reawarp uses the Beat This! beat detector, which is not installed. Install it now?",
   bt_install_first = "install Beat This! first (the installer opened in a new window), then run the action again",
@@ -874,7 +877,7 @@ STRINGS["pt-BR"] = {
   set_detector = "Detector de batidas (auto=Beat This! ou builtin)",
   det_note = " Detector: %s.",
   det_builtin = "interno",
-  bt_failed = " O Beat This! falhou (%s); foi usado o detector interno.",
+  bt_failed = "o Beat This! falhou (%s). Para repará-lo, rode de novo 'Instalar o detector Beat This!...' no menu do reawarp (ele reaproveita o que já foi baixado)",
   bt_missing = "o Beat This! não está instalado",
   bt_required_ask = "O reawarp usa o detector de batidas Beat This!, que não está instalado. Instalar agora?",
   bt_install_first = "instale o Beat This! primeiro (o instalador abriu numa nova janela) e rode a ação de novo",
@@ -1340,13 +1343,18 @@ local function analyze(it, s)
     return out
   end
 
-  -- Beat This! (checked above); if it fails here, fall back to the built-in one
-  local ext, ext_err
+  -- Beat This! (checked above). If it fails, stop: falling back to the built-in
+  -- detector without the user noticing gives beats that can drift onto off-beats.
+  local ext
   local det = tostring(s.detector or "auto"):lower()
   if det ~= "builtin" then
     local okb, e1, e2 = pcall(run_beat_this, acc, t0, t1, nch)
+    local ext_err
     if okb then ext, ext_err = e1, e2 else ext_err = tostring(e1) end
-    if not ext and not ext_err and det == "beat_this" then ext_err = txt("bt_missing") end
+    if not ext then
+      r.DestroyAudioAccessor(acc)
+      return nil, txt("bt_failed", ext_err or txt("bt_missing"))
+    end
   end
 
   local manual = parse_sig(s.timesig)
@@ -1358,7 +1366,6 @@ local function analyze(it, s)
   if not ok then return nil, tostring(res) end
   if not res then return nil, txt(err) end
   res.detector = ext and "Beat This!" or txt("det_builtin")
-  res.ext_err = ext_err
 
   local sig = manual or parse_sig(res.meter == 3 and "3/4" or "4/4")
   if not manual and res.meter ~= 3 then
@@ -1522,7 +1529,6 @@ function A.analyze(items, s)
         it.name, res.bpm, res.bpm_min, res.bpm_max, sig_str(res.sig),
         res.sig_note, #res.beats, tstr(res.down_time))
         .. txt("det_note", res.detector)
-        .. (res.ext_err and txt("bt_failed", res.ext_err) or "")
     else
       out[#out + 1] = txt("err_item", it.name, err)
     end

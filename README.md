@@ -49,7 +49,9 @@ Moving from a manual installation to ReaPack: ReaPack installs into
 `Scripts/reawarp/Tempo/`. To keep the Beat This! already installed, move the folders
 `env`, `models`, `python` and `uv` from the old `backend` folder into the new one, then
 delete the old `Scripts/reawarp/reawarp.lua` and `actions` (and remove their entries from
-the Action List).
+the Action List). Moving the folders breaks the Python environment's links, so then run
+*Install the Beat This! detector...* from the reawarp menu once: it repairs the
+environment in a few seconds and reuses what is already downloaded.
 
 | Action List entry | What it does |
 |---|---|
@@ -75,8 +77,9 @@ of them; it fails where the strongest attacks are off the beat (reggae, samba, h
 with offbeat guitar) and where there is no clear kick/snare (ballads). About 25 variants of
 its onset sensitivity, band weighting and tracking did not change that. It is still
 available for those who cannot install Beat This!: choose `builtin` as the *Beat detector* in
-the settings. If Beat This! is installed but fails on a song, reawarp falls back to the
-built-in detector and says so in the report.
+the settings. If Beat This! is installed but fails, reawarp stops with
+an error instead of silently using the built-in detector; running the installer again
+repairs it.
 
 - Requirements: an internet connection during the installation. No Python installation
   is needed: the installer downloads [uv](https://github.com/astral-sh/uv), which brings
