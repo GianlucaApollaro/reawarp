@@ -196,6 +196,25 @@ def main():
         o['external'] = ext
         results.append(check(name, lua, dsp, truth, y, o, meter=meter, want_down=0))
 
+    # 13. external beats, 3/4 at 200 bpm with a break (a held chord) after bar 10;
+    # around it the detector adds three beats and two downbeats. Must not halve
+    # (bars of 1.5 beats) and every bar after the break must still start on 1.
+    p = 0.3
+    first = 0.9 + np.arange(30) * p
+    second = first[-1] + p + 0.45 + np.arange(36) * 0.32
+    truth = np.concatenate([first, second])
+    y = render(truth, meter=3, noise=0.003, seed=13)
+    extra = [first[-1] + 0.2, second[0] + 0.2, second[1] + 0.11]
+    coarse = np.sort(np.concatenate([truth, extra])) + rng.uniform(-0.005, 0.005, truth.size + len(extra))
+    downs = list(np.round(truth[::3] / 0.02) * 0.02) + [round(extra[1] / 0.02) * 0.02, round(second[2] / 0.02) * 0.02]
+    ext = lua.table_from({'beats': lua.table_from(list(coarse)), 'downbeats': lua.table_from(sorted(downs))})
+    recall, ok = check('external 3/4 200, break', lua, dsp, truth, y, dict(opts, external=ext), meter=3, want_down=0)
+    res, beats, _ = run(lua, dsp, y, dict(opts, external=ext))
+    lab = (np.arange(len(beats)) - (res.downbeat - 1)) % 3
+    wrong = sum(1 for t in truth[::3] if lab[np.argmin(np.abs(beats - t))] != 0)
+    print(f'{"  bars not on 1":<24} {wrong}')
+    results.append((recall, ok and wrong == 0))
+
     if len(sys.argv) > 1:
         import subprocess
         ff = os.environ.get('FFMPEG', 'ffmpeg')

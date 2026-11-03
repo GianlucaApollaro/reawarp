@@ -534,6 +534,25 @@ local function nearest(list, t)
   return bi, best
 end
 
+-- most common number of beats between downbeats (2..8), nil if too few
+function M.downbeat_gap(times, d)
+  local idx = {}
+  for _, t in ipairs(d) do
+    local j, dist = nearest(times, t)
+    if j and dist <= 0.07 then idx[#idx + 1] = j end
+  end
+  if #idx < 4 then return nil end
+  local count, best, bg = {}, 0, nil
+  for k = 2, #idx do
+    local g = idx[k] - idx[k - 1]
+    if g >= 2 and g <= 8 then
+      count[g] = (count[g] or 0) + 1
+      if count[g] > best then best, bg = count[g], g end
+    end
+  end
+  return bg
+end
+
 -- Returns beats, downbeats and, when halving, the dropped beats (real
 -- detections, kept so "Double the BPM" can bring them back exactly).
 function M.external_beats(ext, ref_bpm)
@@ -545,7 +564,10 @@ function M.external_beats(ext, ref_bpm)
   local dropped = {}
   if #b < 4 then return b, d, dropped end
   local ratio = 60 / median(intervals(b)) / ref_bpm
-  if ratio > 1.45 then
+  -- never halve bars of an odd number of beats (3/4 at 200 BPM would get
+  -- one and a half beats per bar)
+  local gap = M.downbeat_gap(b, d)
+  if ratio > 1.45 and not (gap and gap % 2 == 1) then
     -- double tempo: keep every other beat, in the phase that holds the downbeats
     local cnt = { 0, 0 }
     for i, t in ipairs(b) do
@@ -598,22 +620,143 @@ end
 
 -- beats per bar from the downbeats (3, or 4 for duple), nil if too few
 function M.meter_from_downbeats(times, d)
-  local idx = {}
-  for _, t in ipairs(d) do
-    local j, dist = nearest(times, t)
-    if j and dist <= 0.07 then idx[#idx + 1] = j end
-  end
-  if #idx < 4 then return nil end
-  local count, best, bg = {}, 0, nil
-  for k = 2, #idx do
-    local g = idx[k] - idx[k - 1]
-    if g >= 2 and g <= 8 then
-      count[g] = (count[g] or 0) + 1
-      if count[g] > best then best, bg = count[g], g end
-    end
-  end
+  local bg = M.downbeat_gap(times, d)
   if not bg then return nil end
   return bg % 3 == 0 and 3 or 4 -- 6 = two bars of 3
+end
+
+-- Keep one bar's worth of beats between the downbeats.
+-- The neural detector sometimes adds beats (or downbeats) around breaks,
+-- fermatas and ornaments; one extra beat shifts every later bar. The
+-- downbeats are chosen as a chain of bars of about the expected length
+-- with a smooth tempo (dynamic programming over pairs of downbeats); the
+-- beats inside each bar are the detections nearest to an even subdivision
+-- (or to the local tempo, for a bar ending in a hold), or the subdivision
+-- itself when none is near. times: beats on the chosen
+-- level (regularized), cand: the detector's beats on that level.
+function M.anchor_downbeats(times, cand, downs, meter)
+  if #times < 8 or #downs < 4 or not meter or meter < 2 then return times end
+  local iv = intervals(times)
+  local function period(t)
+    local j = nearest(times, t) or 1
+    local w = {}
+    for k = max(1, j - 12), min(#iv, j + 12) do w[#w + 1] = iv[k] end
+    return median(w)
+  end
+  -- nodes: downbeats on a detected beat of this level (after halving, a
+  -- downbeat on a dropped beat is ignored rather than moving the beat phase)
+  local node = {}
+  for _, d in ipairs(downs) do
+    local j, dist = nearest(cand, d)
+    if j and dist <= 0.07 and (not node[1] or cand[j] - node[#node] > 0.05) then node[#node + 1] = cand[j] end
+  end
+  local n = #node
+  if n < 4 then return times end
+
+  -- beats a + q * sub (q = 1 .. cnt - 1): the nearest detection, or the target
+  local function fill(a, sub, cnt, out)
+    local last, e = a, 0
+    for q = 1, cnt - 1 do
+      local tg = a + q * sub
+      local j, dist = nearest(cand, tg)
+      local t = (j and dist <= 0.3 * sub and cand[j] > last + 0.4 * sub) and cand[j] or tg
+      e = e + min(0.5, (dist or sub) / sub)
+      if out then out[#out + 1] = t end
+      last = t
+    end
+    return e / max(1, cnt - 1)
+  end
+
+  -- edges i -> j: k even bars, or one bar at the local tempo followed by a
+  -- hold (a break or fermata), which keeps the count of beats per bar.
+  -- Costs are per edge: minus the bars of time covered (so the chain spans
+  -- as much of the song as it can), plus deviations from the expected bar.
+  local edges, into = {}, {}
+  for i = 1, n do into[i] = {} end
+  for i = 1, n - 1 do
+    local found = false
+    for j = i + 1, n do
+      local s = node[j] - node[i]
+      local p = period(0.5 * (node[i] + node[j]))
+      local x = s / (meter * p)
+      if x > 4.5 then break end
+      local k = max(1, round(x))
+      local dev = abs(x / k - 1)
+      -- the beats must add up: up to 0.7 beat off in one bar (a ritardando),
+      -- half a beat over several bars
+      -- several bars may only skip downbeats that are not on one of their bar lines
+      local skips_bar = false
+      for q = i + 1, j - 1 do
+        local f = (node[q] - node[i]) / (s / k)
+        if abs(f - round(f)) <= 0.25 then skips_bar = true; break end
+      end
+      if x >= 0.6 and dev <= 0.22 and abs(s / p - k * meter) <= (k == 1 and 0.7 or 0.5)
+          and not (k > 1 and skips_bar) then
+        edges[#edges + 1] = { i = i, j = j, k = k, bar = s / k, sub = s / (k * meter), cnt = k * meter,
+          cost = -x + 4 * dev + 2 * fill(node[i], s / (k * meter), k * meter) }
+        found = true
+      end
+      -- a bar with another number of beats at the same tempo (the detector
+      -- missed or added a downbeat, or the song really has an odd bar)
+      local cnt = round(s / p)
+      if cnt >= 2 and cnt <= 2 * meter and cnt % meter ~= 0 and abs(s / (cnt * p) - 1) <= 0.12 then
+        edges[#edges + 1] = { i = i, j = j, k = 1, bar = meter * p, sub = s / cnt, cnt = cnt,
+          cost = -x + 1.5 + 2 * fill(node[i], s / cnt, cnt) }
+        found = true
+      end
+      if x >= 1.15 and x <= 2.2 then
+        -- a hold has no detections where the beats would go on at this tempo
+        local p0 = period(node[i])
+        local ongrid = 0
+        for q = meter, floor(s / p0 - 0.5) do
+          local _, dist = nearest(cand, node[i] + q * p0)
+          if dist and dist <= 0.15 * p0 then ongrid = ongrid + 1 end
+        end
+        edges[#edges + 1] = { i = i, j = j, k = 1, bar = meter * p0, sub = p0, cnt = meter,
+          cost = -x + 0.5 + 1.5 * (x - 1) + 2 * fill(node[i], p0, meter) + 2 * ongrid }
+        found = true
+      end
+    end
+    if not found then -- a long break: bridge it to the next downbeat
+      local s = node[i + 1] - node[i]
+      local x = s / (meter * period(node[i]))
+      local k = max(1, round(x))
+      edges[#edges + 1] = { i = i, j = i + 1, k = k, bar = s / k, sub = s / (k * meter), cnt = k * meter,
+        cost = -x + 2 }
+    end
+  end
+  table.sort(edges, function(a, b) return a.i < b.i or (a.i == b.i and a.j < b.j) end)
+  local bestc, bestlast = math.huge, nil
+  for _, e in ipairs(edges) do
+    e.best, e.prev = e.cost, nil
+    for _, p in ipairs(into[e.i]) do
+      local c = p.best + e.cost + 3 * abs(log(e.bar / p.bar))
+      if c < e.best then e.best, e.prev = c, p end
+    end
+    into[e.j][#into[e.j] + 1] = e
+    if e.best < bestc then bestc, bestlast = e.best, e end
+  end
+  if not bestlast then return times end
+  local chain = {}
+  local e = bestlast
+  while e do table.insert(chain, 1, e); e = e.prev end
+  local a, z = node[chain[1].i], node[chain[#chain].j]
+
+  local out = {}
+  local head = period(a)
+  for _, t in ipairs(times) do
+    if t < a - 0.5 * head then out[#out + 1] = t end
+  end
+  for _, c in ipairs(chain) do
+    out[#out + 1] = node[c.i]
+    fill(node[c.i], c.sub, c.cnt, out)
+  end
+  out[#out + 1] = z
+  local tail = period(z)
+  for _, t in ipairs(times) do
+    if t > z + 0.5 * tail then out[#out + 1] = t end
+  end
+  return out
 end
 
 -- bar phase (1..meter) holding the most downbeats, nil if too few
@@ -658,10 +801,14 @@ function M.analyze(read, nsamp, sr, opts)
     if #times < 4 then return nil, "err_no_pulse" end
     -- local tempo curve at the chosen level, to keep the beats on that level
     local per = M.local_periods(o, fps, median(intervals(times)) / spf, 0.25, 8)
+    local cand = times
     times = M.regularize(times, function(t)
       local k = min(#per, max(1, floor(t / spf + 1.5)))
       return per[k] * spf
     end)
+    -- beats per bar as the detector counts them (2 for 2/4, unlike the meter)
+    local gap = M.downbeat_gap(times, downs)
+    if gap and gap <= 4 and not opts.no_anchor then times = M.anchor_downbeats(times, cand, downs, gap) end
     P = median(intervals(times)) / spf
     bpm = 60 / (P * spf)
   else
