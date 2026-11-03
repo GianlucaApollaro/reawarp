@@ -11,6 +11,7 @@ local dsp = dofile(RW_MAIN)
 REAWARP_TEST = "core"
 local core = dofile(RW_MAIN)
 REAWARP_TEST = nil
+core.sync = true -- each action finishes before the runner looks at the result
 -- optional: measure with another version's detector (RW_MEASURE), to compare versions fairly
 local mdsp = dsp
 if RW_MEASURE then

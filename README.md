@@ -53,6 +53,14 @@ the Action List). Moving the folders breaks the Python environment's links, so t
 *Install the Beat This! detector...* from the reawarp menu once: it repairs the
 environment in a few seconds and reuses what is already downloaded.
 
+REAPER keeps responding while an action works: Beat This! runs in the background and the
+analysis gives REAPER its window back many times a second, so you can keep moving around
+the project (do not edit the item being analyzed). The result is announced through OSARA;
+without OSARA it is shown in a window. Dialogs only appear when reawarp needs an answer
+(time signature, removing a tempo map, a new BPM) and for the settings. Running the same
+action again while it works cancels it (Undo reverts what it had already changed); starting
+another reawarp action meanwhile only announces that it is still working.
+
 | Action List entry | What it does |
 |---|---|
 | `reawarp.lua` | Menu with every function |
@@ -130,7 +138,7 @@ default, on the project (*Project settings*).
      *Tempo map*), reawarp asks whether to remove it and use a fixed tempo; otherwise the
      warped song would follow that varying tempo.
      When everything works the warp opens no window (with OSARA it announces "Warp
-     applied"); a dialog only appears on errors or to ask about the time signature.
+     applied"); a dialog only appears to ask about the time signature or the tempo map.
      2/4, 4/4 and 2/2 are treated as equivalent (they cannot be told apart reliably from
      audio, and their bar lines coincide): a duple-meter song uses the project's signature.
      If the song's signature differs from the project's (e.g. 3/4 in a 4/4 project),

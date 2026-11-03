@@ -12,6 +12,7 @@ function M.new(opts)
   function r.ColorToNative(a, b, c) return a | (b << 8) | (c << 16) end
   function r.GetExtState(s, k) return P.ext[s .. k] or "" end
   function r.SetExtState(s, k, v) P.ext[s .. k] = v end
+  function r.DeleteExtState(s, k) P.ext[s .. k] = nil end
   function r.osara_outputMessage(t) P.messages[#P.messages + 1] = t end
   function r.ShowMessageBox(t, _, kind)
     P.messages[#P.messages + 1] = t

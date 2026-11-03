@@ -45,6 +45,18 @@
 -- You should have received a copy of the GNU General Public License along with
 -- this program (LICENSE). If not, see <https://www.gnu.org/licenses/>.
 
+-- The actions run in a coroutine (see core.run): breath() hands control back
+-- to REAPER every 50 ms, so its window keeps responding during long work.
+-- Outside a coroutine (tests, or a host without defer) it does nothing.
+local now = (reaper and reaper.time_precise) or os.clock
+local breath_t = now()
+local function breath()
+  if now() - breath_t > 0.05 and coroutine.isyieldable() then
+    coroutine.yield()
+    breath_t = now()
+  end
+end
+
 ---------------------------------------------------------------------------
 -- 1. Analysis engine
 ---------------------------------------------------------------------------
@@ -97,6 +109,7 @@ function M.onset_envelope(read, nsamp, sr, hop)
   local BLOCK = 32768
   local pos = 0
   while pos < nsamp do
+    breath()
     local n = min(BLOCK, nsamp - pos)
     local buf = read(pos, n)
     for i = 1, n do
@@ -191,7 +204,7 @@ function M.global_tempo(o, fps, minbpm, maxbpm, hint)
   local lmin = max(2, floor(60 * fps / maxbpm))
   local lmax = min(n - 2, ceil(60 * fps / minbpm))
   local ac = {}
-  for lag = lmin - 1, lmax + 1 do ac[lag] = autocorr(o, 1, n, lag) end
+  for lag = lmin - 1, lmax + 1 do breath(); ac[lag] = autocorr(o, 1, n, lag) end
   local center = (hint and hint > 0) and hint or 120
   local sig = (hint and hint > 0) and 0.1 or 1.0
   local best, bl = -1e300, nil
@@ -220,6 +233,7 @@ function M.local_periods(o, fps, P, var, win_sec)
   local cs, ps = {}, {}
   local prev = P
   for c = 1, n, H do
+    breath()
     local a, b = max(1, c - floor(W / 2)), min(n, c + floor(W / 2))
     local p = prev
     if b - a > 2 * lmax then
@@ -287,6 +301,7 @@ function M.track_beats(o, periods, tightness)
 
   local cum, back = {}, {}
   for t = 1, n do
+    if t % 2048 == 0 then breath() end
     local P = periods[t]
     local lo, hi = t - round(2 * P), t - round(P / 2)
     local best, bi = -1e300, 0
@@ -553,6 +568,7 @@ function M.align_attacks(times, env, envrate, snap)
   local d = {} -- rise strength at each frame: after (0..3 ms) over before (4..12 ms)
   local w3, w4, w12 = max(1, round(3 * rate)), max(1, round(4 * rate)), max(2, round(12 * rate))
   for k = 1, n do
+    if k % 8192 == 0 then breath() end
     local v = log((lmean(k, k + w3) + 1e-5) / (lmean(k - w12, k - w4) + 1e-5))
     d[k] = v > 0 and v or 0
   end
@@ -563,6 +579,7 @@ function M.align_attacks(times, env, envrate, snap)
   -- offset profile per beat (sum over the window computed with prefix sums)
   local prof = {}
   for o = -R, R do
+    breath()
     local col = {}
     local acc = 0
     for i = 1, nb do
@@ -762,6 +779,7 @@ function M.anchor_downbeats(times, cand, downs, meter)
   local edges, into = {}, {}
   for i = 1, n do into[i] = {} end
   for i = 1, n - 1 do
+    breath()
     local found = false
     for j = i + 1, n do
       local s = node[j] - node[i]
@@ -1022,6 +1040,8 @@ STRINGS.en = {
   err_few_beats = "%s: too few beats after the downbeat",
   err_item = "%s: error - %s",
   err_unexpected = "Unexpected error: %s",
+  busy = "reawarp is still working on the previous action.",
+  cancelled = "reawarp: action cancelled. Undo reverts what it had already changed.",
   select_item = "Select at least one audio item.",
 
   set_title = "reawarp - Settings",
@@ -1120,6 +1140,8 @@ STRINGS["pt-BR"] = {
   err_few_beats = "%s: poucas batidas após o tempo forte",
   err_item = "%s: erro - %s",
   err_unexpected = "Erro inesperado: %s",
+  busy = "o reawarp ainda está trabalhando na ação anterior.",
+  cancelled = "reawarp: ação cancelada. Desfazer reverte o que ela já tinha mudado.",
   select_item = "Selecione pelo menos um item de áudio.",
 
   set_title = "reawarp - Configurações",
@@ -1483,6 +1505,19 @@ local function file_exists(path)
   return f ~= nil
 end
 
+-- Read samples from an accessor. GetAudioAccessorSamples fails (returns
+-- nothing, the buffer stays silent) when called from a coroutine, so inside
+-- the action's coroutine the read is handed to core.run, which does it in the
+-- main state and resumes with the result.
+local function direct_read(acc, sr, nch, t, n, buf)
+  if r.AudioAccessorStateChanged and r.AudioAccessorStateChanged(acc) then r.AudioAccessorUpdate(acc) end
+  return r.GetAudioAccessorSamples(acc, sr, nch, t, n, buf)
+end
+local function read_samples(acc, sr, nch, t, n, buf)
+  if coroutine.isyieldable() then return coroutine.yield({ read = { acc, sr, nch, t, n, buf } }) end
+  return direct_read(acc, sr, nch, t, n, buf)
+end
+
 local function backend_python()
   local p = BACKEND .. (IS_WIN and "env/Scripts/python.exe" or "env/bin/python")
   return file_exists(p) and p or nil
@@ -1500,9 +1535,10 @@ local function write_wav(path, acc, t0, t1, nch, sr)
   local fmt = "<" .. string.rep("i2", BLK)
   local ints = {}
   for pos = 0, n - 1, BLK do
+    breath()
     local m = math.min(BLK, n - pos)
     buf.clear()
-    r.GetAudioAccessorSamples(acc, sr, nch, t0 + pos / sr, m, buf)
+    read_samples(acc, sr, nch, t0 + pos / sr, m, buf)
     local t = buf.table(1, m * nch)
     for i = 1, m do
       local v = nch == 1 and t[i] or 0.5 * (t[2 * i - 1] + t[2 * i])
@@ -1518,36 +1554,70 @@ end
 
 -- Beats and downbeats from Beat This!, in seconds from t0.
 -- Returns nil when not installed, or nil + message when it fails.
+-- the result file of the backend: res, or nil + error, or nil when not complete yet
+local function read_bt_output(path)
+  local f = io.open(path, "r")
+  if not f then return nil end
+  local res, err, complete = { beats = {}, downbeats = {} }, nil, false
+  for line in f:lines() do
+    local key, rest = line:match("^(%a+)%s*(.*)$")
+    if key == "error" then err = rest; complete = true
+    elseif res[key or ""] then
+      for v in rest:gmatch("%S+") do res[key][#res[key] + 1] = tonumber(v) end
+      if key == "downbeats" then complete = true end
+    end
+  end
+  f:close()
+  if not complete then return nil end
+  if err then return nil, err end
+  return res
+end
+
 local function run_beat_this(acc, t0, t1, nch)
   local py = backend_python()
   if not py then return nil end
   -- temporary files outside REAPER's folder (it may be synced to the cloud)
   local tmp = (os.getenv("TEMP") or os.getenv("TMPDIR") or (not IS_WIN and "/tmp") or BACKEND):gsub("[\\/]$", "")
   local base = string.format("%s/reawarp_%d_%d", tmp, os.time(), math.random(1e6))
-  local wav, out = base .. ".wav", base .. ".txt"
+  local wav, out, fail = base .. ".wav", base .. ".txt", base .. ".fail"
   if not write_wav(wav, acc, t0, t1, nch, 22050) then return nil, "cannot write " .. wav end
   if r.osara_outputMessage then r.osara_outputMessage(txt("bt_running")) end
-  local cmd = string.format('"%s" "%s" "%s" "%s"', native(py), native(BACKEND .. "reawarp_beat_this.py"),
-    native(wav), native(out))
-  local ret = r.ExecProcess(cmd, 600000) or ""
-  local res, err = { beats = {}, downbeats = {} }, nil
-  local f = io.open(out, "r")
-  if f then
-    for line in f:lines() do
-      local key, rest = line:match("^(%a+)%s*(.*)$")
-      if key == "error" then err = rest
-      elseif res[key or ""] then
-        for v in rest:gmatch("%S+") do res[key][#res[key] + 1] = tonumber(v) end
-      end
+  local function q(x) return '"' .. native(x) .. '"' end
+  local args = table.concat({ q(py), q(BACKEND .. "reawarp_beat_this.py"), q(wav), q(out) }, " ")
+  local res, err
+  if coroutine.isyieldable() and r.defer and not core.sync then
+    -- in the background: REAPER keeps responding while it runs. If Python
+    -- does not even start, the shell writes the .fail file.
+    local launch
+    if IS_WIN then
+      launch = string.format('cmd.exe /D /S /C "%s || echo backend did not start> %s"', args, q(fail))
+    else
+      launch = string.format("/bin/sh -c '%s || echo backend did not start > %s'", args, q(fail))
     end
-    f:close()
+    r.ExecProcess(launch, -1)
+    local start = r.time_precise()
+    while true do
+      coroutine.yield()
+      local done
+      res, err = read_bt_output(out)
+      if res or err then break end
+      if file_exists(fail) then
+        res, err = read_bt_output(out) -- written just before the shell's line?
+        if not (res or err) then err = "Beat This! did not start (" .. native(py) .. ")" end
+        break
+      end
+      if r.time_precise() - start > 600 then err = "timeout"; break end
+    end
   else
-    err = (ret:gsub("%s+", " ")):sub(1, 200)
+    local ret = r.ExecProcess(args, 600000) or ""
+    res, err = read_bt_output(out)
+    if not (res or err) then err = (ret:gsub("%s+", " ")):sub(1, 200) end
   end
   os.remove(wav)
   os.remove(out)
+  os.remove(fail)
   if err then return nil, err end
-  if #res.beats < 4 then return nil, "no beats" end
+  if not res or #res.beats < 4 then return nil, "no beats" end
   return res
 end
 
@@ -1597,7 +1667,7 @@ local function analyze(it, s)
 
   local function read(pos, n)
     buf.clear()
-    r.GetAudioAccessorSamples(acc, SR, nch, t0 + pos / SR, n, buf)
+    read_samples(acc, SR, nch, t0 + pos / SR, n, buf)
     local t = buf.table(1, n * nch)
     if nch == 1 then return t end
     local out = {}
@@ -1795,8 +1865,9 @@ function A.analyze(items, s)
       out[#out + 1] = txt("err_item", it.name, err)
     end
   end
+  local spoken = table.concat(out, "\n")
   out[#out + 1] = txt("analyze_help")
-  return table.concat(out, "\n")
+  return table.concat(out, "\n"), spoken
 end
 
 function A.warp(items, s)
@@ -2197,6 +2268,12 @@ local MAIN = {
 -- Entry point
 ---------------------------------------------------------------------------
 
+-- Results are spoken through OSARA when it is installed (dialogs are kept
+-- for questions); without OSARA they are shown in a dialog.
+local function report(text, spoken)
+  if r.osara_outputMessage then r.osara_outputMessage(spoken or text) else msg(text) end
+end
+
 function core.run(action)
   local s = core.load_settings()
   set_lang(s.lang)
@@ -2208,27 +2285,55 @@ function core.run(action)
     action = MAIN[c][1]
   end
   if action == "settings" then core.settings_dialog(s); return end
-  if action == "install" then msg(open_installer()); return end
+  if action == "install" then report(open_installer()); return end
+
+  local clock = r.time_precise or os.clock
+  -- one action at a time: a running one refreshes this on every step
+  local busy = tonumber(r.GetExtState("reawarp", "busy"))
+  if busy and clock() - busy >= 0 and clock() - busy < 3 then report(txt("busy")); return end
 
   local items = selected_takes()
-  if #items == 0 and action ~= "retempo" then msg(txt("select_item")); return end
+  if #items == 0 and action ~= "retempo" then report(txt("select_item")); return end
 
+  -- The action runs in a coroutine resumed by defer: the long parts (reading
+  -- the audio, Beat This!, the analysis) give REAPER its window back every
+  -- 50 ms instead of freezing it. Running the same action again cancels it.
+  if r.set_action_options then r.set_action_options(1) end
   r.Undo_BeginBlock()
-  r.PreventUIRefresh(1)
-  local ok, result, quiet = pcall(A[action], items, s)
-  if ok and result == nil then -- cancelled
-    r.PreventUIRefresh(-1)
+  local co = coroutine.create(function() return A[action](items, s) end)
+  local finished = false
+  local function close()
+    finished = true
+    r.DeleteExtState("reawarp", "busy", false)
+    r.UpdateArrange()
+    r.UpdateTimeline()
     r.Undo_EndBlock(txt("undo_" .. action), -1)
-    return
   end
-  r.PreventUIRefresh(-1)
-  r.UpdateArrange()
-  r.UpdateTimeline()
-  r.Undo_EndBlock(txt("undo_" .. action), -1)
-  if ok and quiet then
-    if r.osara_outputMessage then r.osara_outputMessage(quiet) end
+  if r.atexit then
+    r.atexit(function()
+      if not finished then close(); report(txt("cancelled")) end
+    end)
+  end
+  local function step()
+    r.SetExtState("reawarp", "busy", tostring(clock()), false)
+    r.PreventUIRefresh(1)
+    local ok, result, spoken = coroutine.resume(co)
+    -- audio reads asked by the coroutine (see read_samples), served here
+    while ok and coroutine.status(co) ~= "dead" and type(result) == "table" and result.read do
+      ok, result, spoken = coroutine.resume(co, direct_read(table.unpack(result.read)))
+    end
+    r.PreventUIRefresh(-1)
+    if coroutine.status(co) ~= "dead" then return false end
+    close()
+    if not ok then report(txt("err_unexpected", tostring(result)))
+    elseif result ~= nil then report(result, spoken) end -- nil: cancelled in a dialog
+    return true
+  end
+  if r.defer and not core.sync then
+    local function loop() if not step() then r.defer(loop) end end
+    loop()
   else
-    msg(ok and result or txt("err_unexpected", tostring(result)))
+    repeat until step()
   end
 end
 

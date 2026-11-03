@@ -83,13 +83,16 @@ def main(argv):
         beats, downbeats = Postprocessor(type="minimal")(beat_logits, down_logits)
         beats = refine(beats, beat_logits)
         downbeats = [min(beats, key=lambda b: abs(b - d)) for d in downbeats] if len(beats) else []
-        with open(dst, "w", encoding="utf-8") as f:
+        # written whole and then renamed: reawarp reads the file while this runs
+        with open(dst + ".part", "w", encoding="utf-8") as f:
             f.write("beats " + " ".join(f"{t:.6f}" for t in beats) + "\n")
             f.write("downbeats " + " ".join(f"{t:.6f}" for t in downbeats) + "\n")
+        os.replace(dst + ".part", dst)
         return 0
-    except Exception as e:  # report to reawarp, which falls back to its own detector
-        with open(dst, "w", encoding="utf-8") as f:
+    except Exception as e:  # reported by reawarp
+        with open(dst + ".part", "w", encoding="utf-8") as f:
             f.write("error " + f"{type(e).__name__}: {e}".replace("\n", " ") + "\n")
+        os.replace(dst + ".part", dst)
         return 1
 
 

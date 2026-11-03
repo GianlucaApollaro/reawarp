@@ -54,6 +54,15 @@ Action List). Mover as pastas quebra os vínculos do ambiente Python; por isso, 
 uma vez *Instalar o detector Beat This!...* no menu do reawarp: ele repara o ambiente em
 poucos segundos e reaproveita o que já foi baixado.
 
+O REAPER continua respondendo enquanto uma ação trabalha: o Beat This! roda em segundo
+plano e a análise devolve a janela ao REAPER muitas vezes por segundo, então dá para
+continuar navegando pelo projeto (não edite o item que está sendo analisado). O resultado
+é anunciado pelo OSARA; sem o OSARA, ele aparece numa janela. Diálogos só aparecem quando
+o reawarp precisa de uma resposta (fórmula de compasso, remover um mapa de tempo, um novo
+BPM) e nas configurações. Rodar a mesma ação de novo enquanto ela trabalha a cancela
+(Desfazer reverte o que ela já tinha mudado); iniciar outra
+ação do reawarp nesse meio-tempo só avisa que ele ainda está trabalhando.
+
 | Ação no Action List | O que faz |
 |---|---|
 | `reawarp.lua` | Menu com todas as funções |
@@ -134,8 +143,8 @@ markers definidos no item (propriedades do item) ou, se o item usar o padrão, n
      um *Mapa de tempo*), o reawarp pergunta se deve removê-lo e usar um tempo fixo; senão,
      a música seguiria esse tempo variável.
      Quando dá tudo certo o warp não abre janela (com o OSARA, ele anuncia "Warp
-     aplicado"); só aparece um diálogo em caso de erro ou para perguntar sobre a fórmula
-     de compasso.
+     aplicado"); só aparece um diálogo para perguntar sobre a fórmula de compasso ou o
+     mapa de tempo.
      2/4, 4/4 e 2/2 são tratados como equivalentes (não dá para distingui-los com segurança
      pelo áudio e as barras coincidem): uma música binária usa a fórmula do projeto.
      Se a fórmula da música for diferente da do projeto (ex.: 3/4 num projeto 4/4), o
