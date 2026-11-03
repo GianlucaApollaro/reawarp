@@ -191,7 +191,7 @@ Each action is a single undo step (Ctrl+Z).
 | Item follows tempo changes | 1 | Item timebase after the warp |
 | Change project time sig | 1 | On warp, if the signatures differ: 0 = never, 1 = ask, 2 = always |
 | Beat detector | auto | `auto` (or `beat_this`) uses Beat This!; `builtin` uses the less reliable built-in detector |
-| Language | auto | `auto`, `en` or `pt-BR`. `auto` uses REAPER's language pack, or else the system language |
+| Language | auto | `auto`, `en`, `pt-BR` or `es`. `auto` uses REAPER's language pack, or else the system language |
 
 ## Translations
 

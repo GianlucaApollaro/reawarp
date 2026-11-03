@@ -17,7 +17,7 @@ batidas de uma música (inclusive com tempo variável) e
 Escrito em Lua; as batidas são detectadas pelo detector com rede neural
 [Beat This!](https://github.com/CPJKU/beat_this), instalado com um clique (não é preciso
 ter Python instalado). Toda a interface usa menus e diálogos nativos do REAPER (compatível com leitores de
-tela / OSARA). As mensagens aparecem em português ou inglês conforme a configuração *Idioma*.
+tela / OSARA). As mensagens aparecem em português, inglês ou espanhol conforme a configuração *Idioma*.
 
 ## Instalação
 
@@ -198,7 +198,7 @@ Cada ação é um único passo de desfazer (Ctrl+Z).
 | Item segue mudanças de tempo | 1 | Base de tempo do item após o warp |
 | Ajustar compasso do projeto | 1 | No warp, se a fórmula difere: 0 = nunca, 1 = perguntar, 2 = sempre |
 | Detector de batidas | auto | `auto` (ou `beat_this`) usa o Beat This!; `builtin` usa o detector interno, menos confiável |
-| Idioma | auto | `auto`, `en` ou `pt-BR`. `auto` usa o langpack do REAPER ou, sem ele, o idioma do sistema |
+| Idioma | auto | `auto`, `en`, `pt-BR` ou `es`. `auto` usa o langpack do REAPER ou, sem ele, o idioma do sistema |
 
 ## Traduções
 
