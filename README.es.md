@@ -282,7 +282,7 @@ reawarp está en desarrollo y las contribuciones son bienvenidas:
   offline (vea [Pruebas](#pruebas)) y mantenga la interfaz accesible: solo los menús y
   diálogos nativos de REAPER, y mensajes por OSARA cuando esté disponible.
 - **Traducciones**: agregue una tabla en `STRINGS` en `reawarp.lua` (vea
-  [Traducciones](#traducciones)). La traducción al español es de Vitor Bruski.
+  [Traducciones](#traducciones)).
 - **Donaciones**: si reawarp le resulta útil, puede apoyar su desarrollo por PayPal o Pix
   (Brasil) a **gabrielschuck.tecladista@gmail.com**. ¡Gracias!
 
@@ -294,3 +294,7 @@ reawarp es software libre bajo la [GNU General Public License v3.0](LICENSE) o p
 Puede usarlo, estudiarlo, modificarlo y compartirlo; si distribuye una versión modificada,
 también debe publicarla bajo la GPL con su código fuente, y debe conservar el aviso de
 copyright original.
+
+## Agradecimientos
+
+- A Vitor Bruski ([vrivrixd](https://github.com/vrivrixd)), por la traducción al español.

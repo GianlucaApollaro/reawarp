@@ -281,3 +281,7 @@ O reawarp é software livre sob a [GNU General Public License v3.0](LICENSE) ou 
 Você pode usar, estudar, modificar e compartilhar; se distribuir uma versão modificada,
 ela também precisa ser publicada sob a GPL, com o código-fonte, mantendo o aviso de
 copyright original.
+
+## Agradecimentos
+
+- A Vitor Bruski ([vrivrixd](https://github.com/vrivrixd)), pela tradução para o espanhol.
