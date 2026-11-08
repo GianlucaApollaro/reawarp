@@ -270,6 +270,65 @@ def main():
         if mock.P.asked != 1 or touched or len(opened) != (1 if answer == 6 else 0):
             fails.append('Beat This! requirement: wrong flow')
 
+    # ---------- groove match: target keeps its start position P0 ----------
+    lua, mock, r, core = setup()
+    src_ref = lua.table_from({'sr': SR, 'samples': lua.table_from(y.tolist())})       # 100 BPM
+    src_tgt = lua.table_from({'sr': SR, 'samples': lua.table_from(y3.tolist())})      # 120 BPM
+    ref_item = mock.add_item(0.0, src_ref, 0.0, 30.0, 'drums')
+    tgt_item = mock.add_item(6.0, src_tgt, 0.0, 20.0, 'loop')
+    core.run('match')
+    print('match msg:', lua_list(mock.P.messages)[-1])
+    if abs(tgt_item.D_POSITION - 6.0) > 1e-6:
+        fails.append(f'match moved target item from 6.0 to {tgt_item.D_POSITION:.3f}')
+    if len(lua_list(tgt_item.take.sm)) < 10:
+        fails.append('match did not create stretch markers on target item')
+
+    # ---------- follower items sync on warp + restore ----------
+    lua, mock, r, core = setup()
+    src_g = lua.table_from({'sr': SR, 'samples': lua.table_from(y.tolist())})
+    guide = mock.add_item(2.0, src_g, 0.0, 25.0, 'guide')
+    follower = mock.add_item(4.0, src_g, 0.0, 15.0, 'vocal')
+    # Only guide is selected
+    mock.P.sel = lua.table_from([guide])
+    core.run('warp')
+    if len(lua_list(follower.take.sm)) == 0:
+        fails.append('follower item was not warped alongside guide item')
+    core.run('restore')
+    if not follower.restored or not guide.restored:
+        fails.append('restore did not restore both guide and follower')
+
+    # ---------- beat marker navigation and editing (next/prev/move/add/del) ----------
+    lua, mock, r, core = setup()
+    src_t = lua.table_from({'sr': SR, 'samples': lua.table_from(y.tolist())})
+    it_t = mock.add_item(0.0, src_t, 0.0, 25.0, 'live')
+    core.run('tempo')
+    p_after_tempo = it_t.D_POSITION
+    mock.P.cursor = p_after_tempo + 0.1
+    core.run('next_beat')
+    c1 = mock.P.cursor
+    core.run('next_beat')
+    c2 = mock.P.cursor
+    core.run('prev_beat')
+    c3 = mock.P.cursor
+    if not (c2 > c1 and abs(c3 - c1) < 1e-6):
+        fails.append(f'next_beat/prev_beat cursor mismatch: {c1:.3f}, {c2:.3f}, {c3:.3f}')
+    # move_beat by +25 ms: tempo marker must move to new cursor and item must not shift
+    target_t = c1 + 0.025
+    mock.P.cursor = target_t
+    core.run('move_beat')
+    tm_times = [m.t for m in lua_list(mock.P.tempo)]
+    if abs(it_t.D_POSITION - p_after_tempo) > 1e-6 or min(abs(t - target_t) for t in tm_times) > 1e-4:
+        fails.append('move_beat did not update tempo marker in place')
+    # add_beat at midpoint between c1 and c2, then del_beat it
+    n_tm_before = len(lua_list(it_t.take.tm))
+    mock.P.cursor = 0.5 * (target_t + c2)
+    core.run('add_beat')
+    n_tm_added = len(lua_list(it_t.take.tm))
+    core.run('del_beat')
+    n_tm_deleted = len(lua_list(it_t.take.tm))
+    if n_tm_added != n_tm_before + 1 or n_tm_deleted != n_tm_before:
+        fails.append(f'add_beat/del_beat marker count mismatch: {n_tm_before} -> {n_tm_added} -> {n_tm_deleted}')
+
     print('FAIL:\n  ' + '\n  '.join(fails) if fails else 'OK')
     sys.exit(1 if fails else 0)
 

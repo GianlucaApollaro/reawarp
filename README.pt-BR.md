@@ -71,9 +71,15 @@ numa janela, porque explica o que conferir em seguida.
 | `reawarp - Analyze beats.lua` | Analisa e cria marcadores de batida (mostra o relatório) |
 | `reawarp - Warp item to project tempo.lua` | Item segue o tempo do projeto |
 | `reawarp - Tempo map from item.lua` | Projeto segue o tempo do item |
+| `reawarp - Match groove to first item.lua` | Ajusta os itens selecionados às batidas do primeiro item selecionado |
 | `reawarp - Change song tempo.lua` | Muda o tempo de uma música que tem mapa de tempo |
 | `reawarp - Double BPM.lua` | Dobra o BPM: do projeto depois de um mapa de tempo, da música depois de um warp |
 | `reawarp - Halve BPM.lua` | Reduz o BPM à metade: do projeto depois de um mapa de tempo, da música depois de um warp |
+| `reawarp - Next beat marker.lua` | Move o cursor de edição para o próximo marcador de batida e o anuncia pelo OSARA |
+| `reawarp - Previous beat marker.lua` | Move o cursor de edição para o marcador de batida anterior e o anuncia pelo OSARA |
+| `reawarp - Move nearest beat marker to edit cursor.lua` | Move o marcador de batida mais próximo para o cursor e atualiza o mapa de tempo/warp |
+| `reawarp - Add beat marker at edit cursor.lua` | Adiciona um marcador de batida no cursor de edição e atualiza o mapa de tempo/warp |
+| `reawarp - Delete nearest beat marker.lua` | Remove o marcador de batida mais próximo e atualiza o mapa de tempo/warp |
 | `reawarp - Set downbeat at edit cursor.lua` | Define o tempo 1 na batida mais próxima do cursor |
 | `reawarp - Restore original items.lua` | Volta o item ao estado anterior ao reawarp |
 | `reawarp - Settings.lua` | Configurações |

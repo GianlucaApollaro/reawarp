@@ -74,9 +74,15 @@ Las acciones tienen nombre en inglés en la lista de acciones:
 | `reawarp - Analyze beats.lua` | Analiza y crea marcadores de pulso (muestra un informe) |
 | `reawarp - Warp item to project tempo.lua` | El ítem sigue el tempo del proyecto |
 | `reawarp - Tempo map from item.lua` | El proyecto sigue el tempo del ítem |
+| `reawarp - Match groove to first item.lua` | Ajusta los ítems seleccionados a los pulsos del primer ítem seleccionado |
 | `reawarp - Change song tempo.lua` | Cambia el tempo de una canción que tiene mapa de tempo |
 | `reawarp - Double BPM.lua` | Duplica el BPM: del proyecto después de un mapa de tempo, de la canción después de un warp |
 | `reawarp - Halve BPM.lua` | Reduce el BPM a la mitad: del proyecto después de un mapa de tempo, de la canción después de un warp |
+| `reawarp - Next beat marker.lua` | Mueve el cursor de edición al siguiente marcador de pulso y lo anuncia por OSARA |
+| `reawarp - Previous beat marker.lua` | Mueve el cursor de edición al marcador de pulso anterior y lo anuncia por OSARA |
+| `reawarp - Move nearest beat marker to edit cursor.lua` | Mueve el marcador de pulso más cercano al cursor y actualiza el mapa de tempo/warp |
+| `reawarp - Add beat marker at edit cursor.lua` | Añade un marcador de pulso en el cursor de edición y actualiza el mapa de tempo/warp |
+| `reawarp - Delete nearest beat marker.lua` | Elimina el marcador de pulso más cercano y actualiza el mapa de tempo/warp |
 | `reawarp - Set downbeat at edit cursor.lua` | Convierte en pulso 1 el pulso más cercano al cursor de edición |
 | `reawarp - Restore original items.lua` | Devuelve los ítems al estado que tenían antes de reawarp |
 | `reawarp - Settings.lua` | Ajustes |

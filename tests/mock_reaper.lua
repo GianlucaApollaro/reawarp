@@ -27,7 +27,10 @@ function M.new(opts)
   function r.UpdateTimeline() end
   function r.UpdateItemInProject() end
   function r.GetCursorPosition() return P.cursor end
+  function r.SetEditCurPos(t) P.cursor = t end
 
+  function r.CountMediaItems() return #P.items end
+  function r.GetMediaItem(_, i) return P.items[i + 1] end
   function r.CountSelectedMediaItems() return #P.sel end
   function r.GetSelectedMediaItem(_, i) return P.sel[i + 1] end
   function r.GetActiveTake(item) return item.take end
@@ -197,9 +200,10 @@ function M.new(opts)
   end
 
   function M.add_item(pos, src, offs, len, name)
-    local take = { ext = {}, name = name or "song", src = src, D_PLAYRATE = 1, D_STARTOFFS = offs or 0, sm = {}, tm = {} }
+    local take = { ext = { GUID = "{MOCK-" .. tostring(#P.items + 1) .. "}" }, name = name or "song", src = src, D_PLAYRATE = 1, D_STARTOFFS = offs or 0, sm = {}, tm = {} }
     local item = { take = take, D_POSITION = pos, D_LENGTH = len, ext = {}, C_BEATATTACHMODE = -1 }
     take.item = item
+    take.P_ITEM = item
     P.items[#P.items + 1] = item
     P.sel[#P.sel + 1] = item
     return item
