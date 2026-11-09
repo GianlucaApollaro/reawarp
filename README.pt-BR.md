@@ -203,6 +203,7 @@ Cada ação é um único passo de desfazer (Ctrl+Z).
 | Alinhar ao transiente | 1 | Ajusta cada batida ao início do ataque mais próximo (±30 ms) |
 | Item segue mudanças de tempo | 1 | Base de tempo do item após o warp |
 | Ajustar compasso do projeto | 1 | No warp, se a fórmula difere: 0 = nunca, 1 = perguntar, 2 = sempre |
+| Sincronizar outros itens | 0 | No warp/mapa de tempo: 0 = não, 1 = itens agrupados com o selecionado, 2 = todos os desbloqueados sobrepostos |
 | Detector de batidas | auto | `auto` (ou `beat_this`) usa o Beat This!; `builtin` usa o detector interno, menos confiável |
 | Idioma | auto | `auto`, `en`, `pt-BR` ou `es`. `auto` usa o langpack do REAPER ou, sem ele, o idioma do sistema |
 

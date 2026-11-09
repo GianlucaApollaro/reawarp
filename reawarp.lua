@@ -1009,6 +1009,7 @@ local EXT_PREPOS = "P_EXT:reawarp_prepos"
 local EXT_LASTPOS = "P_EXT:reawarp_lastpos"
 local EXT_PRELEN = "P_EXT:reawarp_prelen"
 local EXT_REF = "P_EXT:reawarp_ref"
+local EXT_SYNC = "P_EXT:reawarp_sync"
 
 local function set_alt(take, srcs)
   local t = {}
@@ -1057,6 +1058,7 @@ STRINGS.en = {
   set_snap = "Snap to transients (1=yes 0=no)",
   set_follow = "Item follows tempo changes (1/0)",
   set_fix_sig = "Change project time sig (0=no 1=ask 2=always)",
+  set_sync = "Sync other items (0=no 1=grouped 2=all)",
   set_lang = "Language (auto en pt-BR es)",
 
   set_detector = "Beat detector (auto=Beat This! or builtin)",
@@ -1197,6 +1199,7 @@ STRINGS["pt-BR"] = {
   set_snap = "Alinhar ao transiente (1=sim 0=não)",
   set_follow = "Item segue mudanças de tempo (1/0)",
   set_fix_sig = "Ajustar compasso do projeto (0=não 1=perguntar 2=sempre)",
+  set_sync = "Sincronizar outros itens (0=não 1=agrupados 2=todos)",
   set_lang = "Idioma (auto en pt-BR es)",
 
   set_detector = "Detector de batidas (auto=Beat This! ou builtin)",
@@ -1337,6 +1340,7 @@ STRINGS.es = {
   set_snap = "Ajustar a transitorios (1=sí 0=no)",
   set_follow = "El ítem sigue los cambios de tempo (1/0)",
   set_fix_sig = "Cambiar compás del proyecto (0=no 1=preguntar 2=siempre)",
+  set_sync = "Sincronizar otros ítems (0=no 1=agrupados 2=todos)",
   set_lang = "Idioma (auto en pt-BR es)",
 
   set_detector = "Detector de pulsos (auto=Beat This! o builtin)",
@@ -1517,6 +1521,7 @@ local FIELDS = {
   { "snap", 1, "set_snap" },
   { "follow", 1, "set_follow" },
   { "fix_sig", 1, "set_fix_sig" },
+  { "sync", 0, "set_sync" },
   { "detector", "auto", "set_detector" },
   { "lang", "auto", "set_lang" },
 }
@@ -1580,6 +1585,7 @@ function core.settings_dialog(s)
   if lang ~= "auto" and not find_lang(lang) then s.lang = "auto" end
   s.every = math.max(1, math.floor(s.every))
   s.smooth = math.floor(s.smooth)
+  s.sync = (s.sync == 1 or s.sync == 2) and s.sync or 0
   if s.min_bpm >= s.max_bpm then s.min_bpm, s.max_bpm = 60, 180 end
   core.save_settings(s)
   return true
@@ -1753,22 +1759,29 @@ local function neutralize(item, take, keep_pos)
   return pos, last
 end
 
--- Collect all unlocked items on other tracks (or the same track) overlapping
--- [min_t, max_t], neutralize them, and freeze their timebase to Time (0) while
--- the guide item is being warped or tempo-mapped.
-local function collect_followers(guide_item, min_t, max_t, keep_pos)
+-- Collect unlocked follower items overlapping [min_t, max_t] according to s.sync
+-- (0 = off, 1 = same item group as guide_item, 2 = all overlapping), neutralize
+-- them, and freeze their timebase to Time (0) while the guide item is processed.
+local function collect_followers(guide_item, s, min_t, max_t, keep_pos)
+  local mode = s and s.sync or 0
+  if mode ~= 1 and mode ~= 2 then return {} end
+  local gid = r.GetMediaItemInfo_Value(guide_item, "I_GROUPID") or 0
+  if mode == 1 and gid == 0 then return {} end
+  local gguid = item_guid(guide_item) or "1"
   local list = {}
   local total = r.CountMediaItems and r.CountMediaItems(0) or 0
   for i = 0, total - 1 do
     local other = r.GetMediaItem(0, i)
     if other and other ~= guide_item then
       local lock = r.GetMediaItemInfo_Value(other, "C_LOCK") or 0
-      if (math.floor(lock) & 1) == 0 then
+      local ogid = r.GetMediaItemInfo_Value(other, "I_GROUPID") or 0
+      if (math.floor(lock) & 1) == 0 and (mode == 2 or ogid == gid) then
         local take = r.GetActiveTake(other)
         local pos = keep_pos and r.GetMediaItemInfo_Value(other, "D_POSITION") or unwarped_pos(other)
         local len = unwarped_len(other, take)
         if pos < max_t - 1e-6 and pos + len > min_t + 1e-6 then
           remember_original(other)
+          r.GetSetMediaItemInfo_String(other, EXT_SYNC, gguid, true)
           local tb = r.GetMediaItemInfo_Value(other, "C_BEATATTACHMODE")
           r.SetMediaItemInfo_Value(other, "C_BEATATTACHMODE", 0)
           neutralize(other, take, keep_pos)
@@ -2503,7 +2516,7 @@ function A.warp(items, s)
         if tp > 1e-6 and tp < lo_p - 1e-6 then earlier = true; break end
       end
       local min_song = earlier and bar_time(select(2, r.TimeMap2_timeToBeats(0, lo_p))) or 0
-      local followers = #items == 1 and collect_followers(item, math.min(lo_p, min_song), hi_p + g.len) or {}
+      local followers = #items == 1 and collect_followers(item, s, math.min(lo_p, min_song), hi_p + g.len) or {}
       local min_u = 0
       for _, f in ipairs(followers) do
         f.u0 = f.pos - P0
@@ -2679,7 +2692,7 @@ function A.tempo(items, s)
 
   -- collect all follower items in the song's range and freeze their timebase
   -- to Time (0) before touching any tempo markers
-  local followers = collect_followers(item, math.min(lo_p, R), hi_p + g.len, keep_pos)
+  local followers = collect_followers(item, s, math.min(lo_p, R), hi_p + g.len, keep_pos)
   local min_u = 0
   for _, f in ipairs(followers) do
     local u0 = f.pos - P0
@@ -2859,8 +2872,9 @@ function A.match(items, s)
 
       local src_bpm = 60 * (#g.t - 1) * sig.qn / (g.t[#g.t] - g.t[1])
       local ref_bpm = 60 * (last - u1) * rg.sig.qn / (T[last] - T[u1])
+      local down_t = P0 + ((T[d] or ref_time(a_ref + (d - u1))) - X)
       out[#out + 1] = txt("match_line",
-        it.name, ref.name, #used, src_bpm, ref_bpm, 100 * ref_bpm / src_bpm, tstr(P0))
+        it.name, ref.name, #used, src_bpm, ref_bpm, 100 * ref_bpm / src_bpm, tstr(down_t))
     end
   end
   local n_targets = #items - 1
@@ -3315,7 +3329,7 @@ function A.del_beat(items, s)
 end
 
 function A.restore(items)
-  local n, seen = 0, {}
+  local n, seen, guides, groups = 0, {}, {}, {}
   local function restore_one(item)
     if not item or seen[item] then return end
     seen[item] = true
@@ -3325,10 +3339,23 @@ function A.restore(items)
       n = n + 1
     end
   end
-  for _, it in ipairs(items) do restore_one(it.item) end
-  if #items == 1 and r.CountMediaItems then
+  for _, it in ipairs(items) do
+    local g = item_guid(it.item)
+    if g then guides[g] = true end
+    local gid = r.GetMediaItemInfo_Value(it.item, "I_GROUPID") or 0
+    if gid ~= 0 then groups[gid] = true end
+    restore_one(it.item)
+  end
+  if r.CountMediaItems then
     for i = 0, r.CountMediaItems(0) - 1 do
-      restore_one(r.GetMediaItem(0, i))
+      local other = r.GetMediaItem(0, i)
+      if other and not seen[other] then
+        local ok, sg = r.GetSetMediaItemInfo_String(other, EXT_SYNC, "", false)
+        local ogid = r.GetMediaItemInfo_Value(other, "I_GROUPID") or 0
+        if (ok and sg ~= "" and guides[sg]) or (ogid ~= 0 and groups[ogid]) then
+          restore_one(other)
+        end
+      end
     end
   end
   return n > 0 and txt("restored", n) or txt("nothing_restored")
@@ -3423,7 +3450,12 @@ function core.run(action)
   local fast = action == "retempo" or action == "next_beat" or action == "prev_beat"
     or action == "move_beat" or action == "add_beat" or action == "del_beat"
   if r.osara_outputMessage and not fast then r.osara_outputMessage(txt("working")) end
-  r.Undo_BeginBlock()
+  local no_undo = false
+  if action == "next_beat" or action == "prev_beat" then
+    local it = pick_beat_item(items, r.GetCursorPosition(), true)
+    if not it or #rw_markers(it.take) > 0 then no_undo = true end
+  end
+  if not no_undo then r.Undo_BeginBlock() end
   local co = coroutine.create(function() return A[action](items, s) end)
   local finished = false
   local function close()
@@ -3431,7 +3463,7 @@ function core.run(action)
     r.DeleteExtState("reawarp", "busy", false)
     r.UpdateArrange()
     r.UpdateTimeline()
-    r.Undo_EndBlock(txt("undo_" .. action), -1)
+    if not no_undo then r.Undo_EndBlock(txt("undo_" .. action), -1) end
   end
   if r.atexit then
     r.atexit(function()

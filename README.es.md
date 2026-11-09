@@ -213,6 +213,7 @@ Cada acción es un único paso de deshacer (Ctrl+Z).
 | Ajustar a transitorios | 1 | Mueve cada pulso al inicio del ataque más cercano (±30 ms) |
 | El ítem sigue los cambios de tempo | 1 | Base de tiempo del ítem después del warp |
 | Cambiar compás del proyecto | 1 | En el warp, si los compases difieren: 0 = nunca, 1 = preguntar, 2 = siempre |
+| Sincronizar otros ítems | 0 | En el warp/mapa de tempo: 0 = no, 1 = ítems agrupados con el seleccionado, 2 = todos los desbloqueados superpuestos |
 | Detector de pulsos | auto | `auto` (o `beat_this`) usa Beat This!; `builtin` usa el detector integrado, menos fiable |
 | Idioma | auto | `auto`, `en`, `pt-BR` o `es`. `auto` usa el paquete de idioma de REAPER o, si no hay, el idioma del sistema |
 

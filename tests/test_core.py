@@ -283,19 +283,32 @@ def main():
     if len(lua_list(tgt_item.take.sm)) < 10:
         fails.append('match did not create stretch markers on target item')
 
-    # ---------- follower items sync on warp + restore ----------
+    # ---------- follower items sync on warp + restore (opt-in via sync setting) ----------
+    # Default sync=0: unselected overlapping item must NOT be touched or restored
     lua, mock, r, core = setup()
     src_g = lua.table_from({'sr': SR, 'samples': lua.table_from(y.tolist())})
     guide = mock.add_item(2.0, src_g, 0.0, 25.0, 'guide')
-    follower = mock.add_item(4.0, src_g, 0.0, 15.0, 'vocal')
-    # Only guide is selected
+    other = mock.add_item(4.0, src_g, 0.0, 15.0, 'unrelated')
     mock.P.sel = lua.table_from([guide])
     core.run('warp')
-    if len(lua_list(follower.take.sm)) == 0:
-        fails.append('follower item was not warped alongside guide item')
+    if len(lua_list(other.take.sm)) != 0:
+        fails.append('sync=0 touched unselected overlapping item')
+    # sync=1 (grouped items): only items in the same group follow and restore
+    lua, mock, r, core = setup()
+    mock.P.ext['reawarpsync'] = '1'
+    src_g = lua.table_from({'sr': SR, 'samples': lua.table_from(y.tolist())})
+    guide = mock.add_item(2.0, src_g, 0.0, 25.0, 'guide')
+    grouped = mock.add_item(4.0, src_g, 0.0, 15.0, 'vocal')
+    ungrouped = mock.add_item(4.0, src_g, 0.0, 15.0, 'fx')
+    guide.I_GROUPID = 7
+    grouped.I_GROUPID = 7
+    mock.P.sel = lua.table_from([guide])
+    core.run('warp')
+    if len(lua_list(grouped.take.sm)) == 0 or len(lua_list(ungrouped.take.sm)) != 0:
+        fails.append('sync=1 did not sync exclusively grouped items')
     core.run('restore')
-    if not follower.restored or not guide.restored:
-        fails.append('restore did not restore both guide and follower')
+    if not grouped.restored or not guide.restored or ungrouped.restored:
+        fails.append('restore with sync=1 did not restore exclusively guide and grouped follower')
 
     # ---------- beat marker navigation and editing (next/prev/move/add/del) ----------
     lua, mock, r, core = setup()
@@ -304,12 +317,15 @@ def main():
     core.run('tempo')
     p_after_tempo = it_t.D_POSITION
     mock.P.cursor = p_after_tempo + 0.1
+    undos_before = mock.P.undos or 0
     core.run('next_beat')
     c1 = mock.P.cursor
     core.run('next_beat')
     c2 = mock.P.cursor
     core.run('prev_beat')
     c3 = mock.P.cursor
+    if (mock.P.undos or 0) != undos_before:
+        fails.append('next_beat/prev_beat added entries to undo history')
     if not (c2 > c1 and abs(c3 - c1) < 1e-6):
         fails.append(f'next_beat/prev_beat cursor mismatch: {c1:.3f}, {c2:.3f}, {c3:.3f}')
     # move_beat by +25 ms: tempo marker must move to new cursor and item must not shift
