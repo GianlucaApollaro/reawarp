@@ -344,6 +344,21 @@ def main():
     n_tm_deleted = len(lua_list(it_t.take.tm))
     if n_tm_added != n_tm_before + 1 or n_tm_deleted != n_tm_before:
         fails.append(f'add_beat/del_beat marker count mismatch: {n_tm_before} -> {n_tm_added} -> {n_tm_deleted}')
+    # select_beats in time selection + nudge_right / nudge_left + multi-marker move_beat
+    mock.P.ts_a = target_t - 0.05
+    mock.P.ts_b = target_t + 2.0
+    core.run('select_beats')
+    sel_msg = lua_list(mock.P.messages)[-1]
+    if 'selected' not in sel_msg:
+        fails.append(f'select_beats did not report selected markers: {sel_msg}')
+    src_before = [m.src for m in lua_list(it_t.take.tm)]
+    core.run('nudge_right')
+    src_right = [m.src for m in lua_list(it_t.take.tm)]
+    core.run('nudge_left')
+    src_back = [m.src for m in lua_list(it_t.take.tm)]
+    moved_count = sum(1 for a, b in zip(src_before, src_right) if b > a + 1e-4)
+    if moved_count < 3 or max(abs(a - b) for a, b in zip(src_before, src_back)) > 1e-5:
+        fails.append(f'nudge_right/nudge_left failed: moved_count={moved_count}')
 
     print('FAIL:\n  ' + '\n  '.join(fails) if fails else 'OK')
     sys.exit(1 if fails else 0)

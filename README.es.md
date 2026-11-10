@@ -80,7 +80,10 @@ Las acciones tienen nombre en inglés en la lista de acciones:
 | `reawarp - Halve BPM.lua` | Reduce el BPM a la mitad: del proyecto después de un mapa de tempo, de la canción después de un warp |
 | `reawarp - Next beat marker.lua` | Mueve el cursor de edición al siguiente marcador de pulso y lo anuncia por OSARA |
 | `reawarp - Previous beat marker.lua` | Mueve el cursor de edición al marcador de pulso anterior y lo anuncia por OSARA |
-| `reawarp - Move nearest beat marker to edit cursor.lua` | Mueve el marcador de pulso más cercano al cursor y actualiza el mapa de tempo/warp |
+| `reawarp - Select beat markers in time selection.lua` | Selecciona los marcadores de pulso dentro de la selección de tiempo y los anuncia por OSARA |
+| `reawarp - Move nearest beat marker to edit cursor.lua` | Mueve el marcador de pulso más cercano (o seleccionados) al cursor y actualiza el mapa de tempo/warp |
+| `reawarp - Move beat markers left by grid.lua` | Mueve el marcador de pulso (o seleccionados) a la izquierda según la cuadrícula del proyecto |
+| `reawarp - Move beat markers right by grid.lua` | Mueve el marcador de pulso (o seleccionados) a la derecha según la cuadrícula del proyecto |
 | `reawarp - Add beat marker at edit cursor.lua` | Añade un marcador de pulso en el cursor de edición y actualiza el mapa de tempo/warp |
 | `reawarp - Delete nearest beat marker.lua` | Elimina el marcador de pulso más cercano y actualiza el mapa de tempo/warp |
 | `reawarp - Set downbeat at edit cursor.lua` | Convierte en pulso 1 el pulso más cercano al cursor de edición |

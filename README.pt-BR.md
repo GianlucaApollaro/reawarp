@@ -77,7 +77,10 @@ numa janela, porque explica o que conferir em seguida.
 | `reawarp - Halve BPM.lua` | Reduz o BPM à metade: do projeto depois de um mapa de tempo, da música depois de um warp |
 | `reawarp - Next beat marker.lua` | Move o cursor de edição para o próximo marcador de batida e o anuncia pelo OSARA |
 | `reawarp - Previous beat marker.lua` | Move o cursor de edição para o marcador de batida anterior e o anuncia pelo OSARA |
-| `reawarp - Move nearest beat marker to edit cursor.lua` | Move o marcador de batida mais próximo para o cursor e atualiza o mapa de tempo/warp |
+| `reawarp - Select beat markers in time selection.lua` | Seleciona os marcadores de batida dentro da seleção de tempo e anuncia pelo OSARA |
+| `reawarp - Move nearest beat marker to edit cursor.lua` | Move o marcador de batida mais próximo (ou selecionados) para o cursor e atualiza o mapa de tempo/warp |
+| `reawarp - Move beat markers left by grid.lua` | Move o marcador de batida (ou selecionados) para a esquerda pela grade do projeto |
+| `reawarp - Move beat markers right by grid.lua` | Move o marcador de batida (ou selecionados) para a direita pela grade do projeto |
 | `reawarp - Add beat marker at edit cursor.lua` | Adiciona um marcador de batida no cursor de edição e atualiza o mapa de tempo/warp |
 | `reawarp - Delete nearest beat marker.lua` | Remove o marcador de batida mais próximo e atualiza o mapa de tempo/warp |
 | `reawarp - Set downbeat at edit cursor.lua` | Define o tempo 1 na batida mais próxima do cursor |

@@ -76,7 +76,10 @@ dialog, since it explains what to check next.
 | `reawarp - Halve BPM.lua` | Halves the BPM: of the project after a tempo map, of the song after a warp |
 | `reawarp - Next beat marker.lua` | Moves the edit cursor to the next beat marker and announces it via OSARA |
 | `reawarp - Previous beat marker.lua` | Moves the edit cursor to the previous beat marker and announces it via OSARA |
-| `reawarp - Move nearest beat marker to edit cursor.lua` | Moves the nearest beat marker to the edit cursor and updates the tempo map/warp |
+| `reawarp - Select beat markers in time selection.lua` | Selects beat markers inside the active time selection and announces the range via OSARA |
+| `reawarp - Move nearest beat marker to edit cursor.lua` | Moves the nearest beat marker (or selected markers) to the edit cursor and updates the tempo map/warp |
+| `reawarp - Move beat markers left by grid.lua` | Moves the nearest beat marker (or markers in time selection) left by the project grid |
+| `reawarp - Move beat markers right by grid.lua` | Moves the nearest beat marker (or markers in time selection) right by the project grid |
 | `reawarp - Add beat marker at edit cursor.lua` | Inserts a beat marker at the edit cursor and updates the tempo map/warp |
 | `reawarp - Delete nearest beat marker.lua` | Deletes the nearest beat marker and updates the tempo map/warp |
 | `reawarp - Set downbeat at edit cursor.lua` | Makes the beat nearest the edit cursor beat 1 |

@@ -1010,6 +1010,7 @@ local EXT_LASTPOS = "P_EXT:reawarp_lastpos"
 local EXT_PRELEN = "P_EXT:reawarp_prelen"
 local EXT_REF = "P_EXT:reawarp_ref"
 local EXT_SYNC = "P_EXT:reawarp_sync"
+local EXT_SEL = "P_EXT:reawarp_sel"
 
 local function set_alt(take, srcs)
   local t = {}
@@ -1124,6 +1125,12 @@ STRINGS.en = {
   beat_at = "%s (beat %d of %d, %.1f BPM)",
   beat_moved = "%s: %s moved by %+.0f ms.",
   beat_moved_applied = "%s: %s moved by %+.0f ms, %s applied again.",
+  beats_moved = "%s: %d beat markers (%s to %s) moved by %+.0f ms.",
+  beats_moved_applied = "%s: %d beat markers (%s to %s) moved by %+.0f ms, %s applied again.",
+  beats_sel_many = "%s: %d beat markers selected (%s to %s).",
+  beats_sel_one = "%s: 1 beat marker selected (%s).",
+  beats_sel_none = "%s: no beat markers inside the time selection.",
+  beats_sel_cleared = "No time selection active; beat marker selection cleared.",
   beat_added = "%s: %s added.",
   beat_added_applied = "%s: %s added, %s applied again.",
   beat_deleted = "%s: %s deleted.",
@@ -1138,7 +1145,10 @@ STRINGS.en = {
   menu_match = "Match groove: warp items to first item",
   menu_next_beat = "Next beat marker",
   menu_prev_beat = "Previous beat marker",
+  menu_select_beats = "Select beat markers in time selection",
   menu_move_beat = "Move nearest beat marker to edit cursor",
+  menu_nudge_left = "Move beat markers left by grid",
+  menu_nudge_right = "Move beat markers right by grid",
   menu_add_beat = "Add beat marker at edit cursor",
   menu_del_beat = "Delete nearest beat marker",
   menu_downbeat = "Set downbeat at edit cursor",
@@ -1154,7 +1164,10 @@ STRINGS.en = {
   undo_match = "reawarp: match groove to first item",
   undo_next_beat = "reawarp: next beat marker",
   undo_prev_beat = "reawarp: previous beat marker",
+  undo_select_beats = "reawarp: select beat markers in time selection",
   undo_move_beat = "reawarp: move beat marker to cursor",
+  undo_nudge_left = "reawarp: move beat markers left by grid",
+  undo_nudge_right = "reawarp: move beat markers right by grid",
   undo_add_beat = "reawarp: add beat marker at cursor",
   undo_del_beat = "reawarp: delete nearest beat marker",
   undo_downbeat = "reawarp: set downbeat",
@@ -1265,6 +1278,12 @@ STRINGS["pt-BR"] = {
   beat_at = "%s (batida %d de %d, %.1f BPM)",
   beat_moved = "%s: %s movido em %+.0f ms.",
   beat_moved_applied = "%s: %s movido em %+.0f ms, %s aplicado de novo.",
+  beats_moved = "%s: %d marcadores de batida (%s a %s) movidos em %+.0f ms.",
+  beats_moved_applied = "%s: %d marcadores de batida (%s a %s) movidos em %+.0f ms, %s aplicado de novo.",
+  beats_sel_many = "%s: %d marcadores de batida selecionados (%s a %s).",
+  beats_sel_one = "%s: 1 marcador de batida selecionado (%s).",
+  beats_sel_none = "%s: nenhum marcador de batida dentro da seleção de tempo.",
+  beats_sel_cleared = "Nenhuma seleção de tempo ativa; seleção de marcadores limpa.",
   beat_added = "%s: %s adicionado.",
   beat_added_applied = "%s: %s adicionado, %s aplicado de novo.",
   beat_deleted = "%s: %s removido.",
@@ -1279,7 +1298,10 @@ STRINGS["pt-BR"] = {
   menu_match = "Combinar groove: ajustar itens ao primeiro item",
   menu_next_beat = "Próximo marcador de batida",
   menu_prev_beat = "Marcador de batida anterior",
+  menu_select_beats = "Selecionar marcadores de batida na seleção de tempo",
   menu_move_beat = "Mover marcador de batida mais próximo para o cursor de edição",
+  menu_nudge_left = "Mover marcadores de batida para a esquerda pela grade",
+  menu_nudge_right = "Mover marcadores de batida para a direita pela grade",
   menu_add_beat = "Adicionar marcador de batida no cursor de edição",
   menu_del_beat = "Remover marcador de batida mais próximo",
   menu_downbeat = "Definir tempo forte no cursor de edição",
@@ -1295,7 +1317,10 @@ STRINGS["pt-BR"] = {
   undo_match = "reawarp: combinar groove com o primeiro item",
   undo_next_beat = "reawarp: próximo marcador de batida",
   undo_prev_beat = "reawarp: marcador de batida anterior",
+  undo_select_beats = "reawarp: selecionar marcadores de batida na seleção de tempo",
   undo_move_beat = "reawarp: mover marcador de batida para o cursor",
+  undo_nudge_left = "reawarp: mover marcadores de batida para a esquerda pela grade",
+  undo_nudge_right = "reawarp: mover marcadores de batida para a direita pela grade",
   undo_add_beat = "reawarp: adicionar marcador de batida no cursor",
   undo_del_beat = "reawarp: remover marcador de batida mais próximo",
   undo_downbeat = "reawarp: definir tempo forte",
@@ -1406,6 +1431,12 @@ STRINGS.es = {
   beat_at = "%s (pulso %d de %d, %.1f BPM)",
   beat_moved = "%s: %s movido %+.0f ms.",
   beat_moved_applied = "%s: %s movido %+.0f ms; se volvió a aplicar el %s.",
+  beats_moved = "%s: %d marcadores de pulso (%s a %s) movidos %+.0f ms.",
+  beats_moved_applied = "%s: %d marcadores de pulso (%s a %s) movidos %+.0f ms; se volvió a aplicar el %s.",
+  beats_sel_many = "%s: %d marcadores de pulso seleccionados (%s a %s).",
+  beats_sel_one = "%s: 1 marcador de pulso seleccionado (%s).",
+  beats_sel_none = "%s: no hay marcadores de pulso dentro de la selección de tiempo.",
+  beats_sel_cleared = "No hay selección de tiempo activa; selección de marcadores borrada.",
   beat_added = "%s: %s añadido.",
   beat_added_applied = "%s: %s añadido; se volvió a aplicar el %s.",
   beat_deleted = "%s: %s eliminado.",
@@ -1420,7 +1451,10 @@ STRINGS.es = {
   menu_match = "Igualar groove: ajustar ítems al primer ítem",
   menu_next_beat = "Siguiente marcador de pulso",
   menu_prev_beat = "Marcador de pulso anterior",
+  menu_select_beats = "Seleccionar marcadores de pulso en la selección de tiempo",
   menu_move_beat = "Mover el marcador de pulso más cercano al cursor de edición",
+  menu_nudge_left = "Mover marcadores de pulso a la izquierda según la cuadrícula",
+  menu_nudge_right = "Mover marcadores de pulso a la derecha según la cuadrícula",
   menu_add_beat = "Añadir marcador de pulso en el cursor de edición",
   menu_del_beat = "Eliminar el marcador de pulso más cercano",
   menu_downbeat = "Fijar el tiempo fuerte en el cursor de edición",
@@ -1436,7 +1470,10 @@ STRINGS.es = {
   undo_match = "reawarp: igualar groove al primer ítem",
   undo_next_beat = "reawarp: siguiente marcador de pulso",
   undo_prev_beat = "reawarp: marcador de pulso anterior",
+  undo_select_beats = "reawarp: seleccionar marcadores de pulso en la selección de tiempo",
   undo_move_beat = "reawarp: mover marcador de pulso al cursor",
+  undo_nudge_left = "reawarp: mover marcadores de pulso a la izquierda según la cuadrícula",
+  undo_nudge_right = "reawarp: mover marcadores de pulso a la derecha según la cuadrícula",
   undo_add_beat = "reawarp: añadir marcador de pulso en el cursor",
   undo_del_beat = "reawarp: eliminar marcador de pulso más cercano",
   undo_downbeat = "reawarp: fijar el tiempo fuerte",
@@ -2925,19 +2962,23 @@ function A.retempo(items, s)
       note = txt("retempo_static")
     end
   end
-  if s.follow ~= 0 and r.CountMediaItems then
-    for i = 0, r.CountMediaItems(0) - 1 do
-      local other = r.GetMediaItem(0, i)
-      if other and (not it or other ~= it.item) then
-        local lock = r.GetMediaItemInfo_Value(other, "C_LOCK") or 0
-        if (math.floor(lock) & 1) == 0 then
-          local pos = r.GetMediaItemInfo_Value(other, "D_POSITION")
-          local len = r.GetMediaItemInfo_Value(other, "D_LENGTH")
-          if pos < t1 - 1e-6 and pos + len > t0 + 1e-6 then
-            r.SetMediaItemInfo_Value(other, "C_BEATATTACHMODE", 1)
-            local take = r.GetActiveTake(other)
-            if take and not r.TakeIsMIDI(take) then
-              r.SetMediaItemTakeInfo_Value(take, "B_PPITCH", 1)
+  if s.follow ~= 0 and (s.sync == 1 or s.sync == 2) and r.CountMediaItems then
+    local gid = it and (r.GetMediaItemInfo_Value(it.item, "I_GROUPID") or 0) or 0
+    if s.sync == 2 or gid ~= 0 then
+      for i = 0, r.CountMediaItems(0) - 1 do
+        local other = r.GetMediaItem(0, i)
+        if other and (not it or other ~= it.item) then
+          local lock = r.GetMediaItemInfo_Value(other, "C_LOCK") or 0
+          local ogid = r.GetMediaItemInfo_Value(other, "I_GROUPID") or 0
+          if (math.floor(lock) & 1) == 0 and (s.sync == 2 or ogid == gid) then
+            local pos = r.GetMediaItemInfo_Value(other, "D_POSITION")
+            local len = r.GetMediaItemInfo_Value(other, "D_LENGTH")
+            if pos < t1 - 1e-6 and pos + len > t0 + 1e-6 then
+              r.SetMediaItemInfo_Value(other, "C_BEATATTACHMODE", 1)
+              local take = r.GetActiveTake(other)
+              if take and not r.TakeIsMIDI(take) then
+                r.SetMediaItemTakeInfo_Value(take, "B_PPITCH", 1)
+              end
             end
           end
         end
@@ -2949,10 +2990,14 @@ function A.retempo(items, s)
     r.SetTempoTimeSigMarker(0, i, -1, mp, bp, bpm * f, num, den, lin)
   end
   r.UpdateTimeline()
-  if r.CountMediaItems then
+  if it then set_lastpos(it.item, r.GetMediaItemInfo_Value(it.item, "D_POSITION")) end
+  if (s.sync == 1 or s.sync == 2) and r.CountMediaItems then
     for i = 0, r.CountMediaItems(0) - 1 do
       local m = r.GetMediaItem(0, i)
-      if m then set_lastpos(m, r.GetMediaItemInfo_Value(m, "D_POSITION")) end
+      if m then
+        local ok, l = r.GetSetMediaItemInfo_String(m, EXT_LASTPOS, "", false)
+        if ok and l ~= "" then set_lastpos(m, r.GetMediaItemInfo_Value(m, "D_POSITION")) end
+      end
     end
   end
   return txt("retempo_done", avg, new, (f - 1) * 100, last - first + 1) .. note
@@ -3139,11 +3184,90 @@ end
 function A.next_beat(items, s) return step_beat(items, s, 1) end
 function A.prev_beat(items, s) return step_beat(items, s, -1) end
 
--- Move the RW beat marker nearest the edit cursor to the edit cursor position,
--- and reapply the warp, tempo map or groove match if already active.
-function A.move_beat(items, s)
+local function time_selection()
+  if not r.GetSet_LoopTimeRange then return 0, 0 end
+  local a, b = r.GetSet_LoopTimeRange(false, false, 0, 0, false)
+  return a or 0, b or 0
+end
+
+local function markers_in_range(take, item, list, t0, t1)
+  local pos = r.GetMediaItemInfo_Value(item, "D_POSITION")
+  local offs = r.GetMediaItemTakeInfo_Value(take, "D_STARTOFFS")
+  local j1, j2
+  for j, m in ipairs(list) do
+    local T = pos + rel_src_to_item(take, m.src - offs)
+    if T >= t0 - 1e-4 and T <= t1 + 1e-4 then
+      if not j1 then j1 = j end
+      j2 = j
+    end
+  end
+  return j1, j2
+end
+
+local function get_selected_range(take, item, list)
+  local ok, v = r.GetSetMediaItemTakeInfo_String(take, EXT_SEL, "", false)
+  local j1, j2, ts0, ts1, exp
+  if ok and v ~= "" then
+    local s1, s2, st0, st1, se = v:match("^(%d+) (%d+) ([%d%.%-]+) ([%d%.%-]+) (%d+)$")
+    j1, j2, ts0, ts1, exp = tonumber(s1), tonumber(s2), tonumber(st0), tonumber(st1), tonumber(se)
+  end
+  local a, b = time_selection()
+  if b > a + 1e-6 then
+    if j1 and j2 and j1 >= 1 and j2 <= #list and j1 <= j2 and ts0 and ts1
+       and math.abs(ts0 - a) < 1e-4 and math.abs(ts1 - b) < 1e-4 then
+      return j1, j2
+    end
+    local n1, n2 = markers_in_range(take, item, list, a, b)
+    if n1 then
+      r.GetSetMediaItemTakeInfo_String(take, EXT_SEL,
+        string.format("%d %d %.6f %.6f %d", n1, n2, a, b, exp or 0), true)
+      return n1, n2
+    end
+  elseif exp == 1 and j1 and j2 and j1 >= 1 and j2 <= #list and j1 <= j2 then
+    return j1, j2
+  end
+  return nil, nil
+end
+
+function A.select_beats(items, s)
+  local a, b = time_selection()
+  if b <= a + 1e-6 then
+    for _, it in ipairs(items) do
+      r.GetSetMediaItemTakeInfo_String(it.take, EXT_SEL, "", true)
+    end
+    local out = txt("beats_sel_cleared")
+    return out, out
+  end
+  local it = pick_beat_item(items, 0.5 * (a + b), true) or items[1]
+  local item, take = it.item, it.take
+  local list = rw_markers(take)
+  if #list == 0 then
+    local res, err = analyze(it, s)
+    if not res then return txt("err_item", it.name, err) end
+    list = rw_markers(take)
+  end
+  local j1, j2 = markers_in_range(take, item, list, a, b)
+  if not j1 then
+    r.GetSetMediaItemTakeInfo_String(take, EXT_SEL, "", true)
+    local out = txt("beats_sel_none", it.name)
+    return out, out
+  end
+  r.GetSetMediaItemTakeInfo_String(take, EXT_SEL,
+    string.format("%d %d %.6f %.6f 1", j1, j2, a, b), true)
+  local n1 = (list[j1].name:gsub(" %*$", ""))
+  local n2 = (list[j2].name:gsub(" %*$", ""))
+  local count = j2 - j1 + 1
+  local out = count == 1 and txt("beats_sel_one", it.name, n1)
+    or txt("beats_sel_many", it.name, count, n1, n2)
+  return out, out
+end
+
+-- Shift a single RW beat marker or a selected range of RW beat markers:
+-- dir == 0 moves to the edit cursor; dir == -1 / 1 nudges left / right by project grid.
+local function shift_beat_markers(items, s, dir)
   local cur = r.GetCursorPosition()
-  local it = pick_beat_item(items, cur, false)
+  local it = pick_beat_item(items, cur, dir ~= 0)
+  if not it and dir ~= 0 then it = items[1] end
   if not it then return txt("cursor_off") end
   local item, take = it.item, it.take
   local pos = r.GetMediaItemInfo_Value(item, "D_POSITION")
@@ -3158,48 +3282,90 @@ function A.move_beat(items, s)
   end
   local offs = r.GetMediaItemTakeInfo_Value(take, "D_STARTOFFS")
   local scur = offs + item_to_rel_src(take, cur - pos)
-  local best, bj = math.huge, 1
-  for j, m in ipairs(list) do
-    local dd = math.abs(m.src - scur)
+  local j1, j2 = get_selected_range(take, item, list)
+
+  local best, bj = math.huge, j1 or 1
+  local lo_j, hi_j = j1 or 1, j2 or #list
+  for j = lo_j, hi_j do
+    local dd = math.abs(list[j].src - scur)
     if dd < best then best, bj = dd, j end
   end
-  local min_src = list[bj - 1] and (list[bj - 1].src + 0.02) or offs
-  local max_src = list[bj + 1] and (list[bj + 1].src - 0.02) or math.huge
-  local new_src = math.max(min_src, math.min(max_src, scur))
-  local old_T = pos + rel_src_to_item(take, list[bj].src - offs)
-  local new_T = pos + rel_src_to_item(take, new_src - offs)
-  local diff_ms = (new_T - old_T) * 1000
+  if not j1 then j1, j2 = bj, bj end
 
   local sig = take_sig(take, s)
+  local delta_src
+  if dir == 0 then
+    delta_src = scur - list[bj].src
+  else
+    local div = 0.0625 -- default 1/16 note (in whole notes)
+    if r.GetSetProjectGrid then
+      local _, d_ = r.GetSetProjectGrid(0, false)
+      if d_ and d_ > 0 then div = d_ end
+    end
+    local grid_beats = (div * 4) / sig.qn
+    local beat_src
+    if j2 > j1 then
+      beat_src = (list[j2].src - list[j1].src) / (j2 - j1)
+    elseif bj > 1 and bj < #list then
+      beat_src = 0.5 * (list[bj + 1].src - list[bj - 1].src)
+    else
+      beat_src = (list[#list].src - list[1].src) / math.max(1, #list - 1)
+    end
+    delta_src = dir * grid_beats * beat_src
+  end
+
+  local min_src = list[j1 - 1] and (list[j1 - 1].src + 0.02) or offs
+  local max_src = list[j2 + 1] and (list[j2 + 1].src - 0.02) or math.huge
+  delta_src = math.max(min_src - list[j1].src, math.min(max_src - list[j2].src, delta_src))
+
+  local old_T = pos + rel_src_to_item(take, list[bj].src - offs)
+  local new_T = pos + rel_src_to_item(take, list[bj].src + delta_src - offs)
+  local diff_ms = (new_T - old_T) * 1000
+
   local d = downbeat_index(list)
-  local name, col = label(bj, d, sig.group, true)
-  local clean_name = (name:gsub(" %*$", ""))
-  r.SetTakeMarker(take, list[bj].idx, name, new_src, col)
+  local first_name = (label(j1, d, sig.group, false))
+  local last_name = (label(j2, d, sig.group, false))
+  local start_j, end_j, step_j = j1, j2, 1
+  if delta_src > 0 then start_j, end_j, step_j = j2, j1, -1 end
+  for j = start_j, end_j, step_j do
+    local name, col = label(j, d, sig.group, true)
+    r.SetTakeMarker(take, list[j].idx, name, list[j].src + delta_src, col)
+  end
   r.UpdateItemInProject(item)
 
-  local out
+  local mode_label
   if mode == "tempo" then
     s._keep_tempo_pos = true
     A.tempo({ it }, s)
     s._keep_tempo_pos = nil
-    out = txt("beat_moved_applied", it.name, clean_name, diff_ms, txt("mode_tempo"))
+    mode_label = txt("mode_tempo")
   elseif mode == "warp" then
     A.warp({ it }, s)
-    out = txt("beat_moved_applied", it.name, clean_name, diff_ms, txt("mode_warp"))
+    mode_label = txt("mode_warp")
   elseif mode == "match" then
     local _, rguid = r.GetSetMediaItemTakeInfo_String(take, EXT_REF, "", false)
     local ref_it = find_take_by_guid(rguid) or (#items >= 2 and items[1] ~= it and items[1]) or nil
     if ref_it and ref_it.item ~= it.item then
       A.match({ ref_it, it }, s)
-      out = txt("beat_moved_applied", it.name, clean_name, diff_ms, txt("mode_match"))
-    else
-      out = txt("beat_moved", it.name, clean_name, diff_ms)
+      mode_label = txt("mode_match")
     end
+  end
+
+  local count = j2 - j1 + 1
+  local out
+  if count == 1 then
+    out = mode_label and txt("beat_moved_applied", it.name, first_name, diff_ms, mode_label)
+      or txt("beat_moved", it.name, first_name, diff_ms)
   else
-    out = txt("beat_moved", it.name, clean_name, diff_ms)
+    out = mode_label and txt("beats_moved_applied", it.name, count, first_name, last_name, diff_ms, mode_label)
+      or txt("beats_moved", it.name, count, first_name, last_name, diff_ms)
   end
   return out, out
 end
+
+function A.move_beat(items, s) return shift_beat_markers(items, s, 0) end
+function A.nudge_left(items, s) return shift_beat_markers(items, s, -1) end
+function A.nudge_right(items, s) return shift_beat_markers(items, s, 1) end
 
 function A.add_beat(items, s)
   local cur = r.GetCursorPosition()
@@ -3234,6 +3400,7 @@ function A.add_beat(items, s)
   local sig = take_sig(take, s)
   local d = downbeat_index(list)
   relabel(take, list, d, sig.group)
+  r.GetSetMediaItemTakeInfo_String(take, EXT_SEL, "", true)
   r.UpdateItemInProject(item)
 
   list = rw_markers(take)
@@ -3302,6 +3469,7 @@ function A.del_beat(items, s)
   if list[bj] then list[bj].edited = true end
   local sig = take_sig(take, s)
   relabel(take, list, new_d, sig.group)
+  r.GetSetMediaItemTakeInfo_String(take, EXT_SEL, "", true)
   r.UpdateItemInProject(item)
 
   local out
@@ -3389,7 +3557,10 @@ local MAIN = {
   { "halve", "menu_halve" },
   { "next_beat", "menu_next_beat" },
   { "prev_beat", "menu_prev_beat" },
+  { "select_beats", "menu_select_beats" },
   { "move_beat", "menu_move_beat" },
+  { "nudge_left", "menu_nudge_left" },
+  { "nudge_right", "menu_nudge_right" },
   { "add_beat", "menu_add_beat" },
   { "del_beat", "menu_del_beat" },
   { "downbeat", "menu_downbeat" },
@@ -3448,10 +3619,11 @@ function core.run(action)
   -- "please wait" (the analysis shows its report in a dialog at the end; the
   -- song tempo action asks for the new BPM first, so it has no notice)
   local fast = action == "retempo" or action == "next_beat" or action == "prev_beat"
-    or action == "move_beat" or action == "add_beat" or action == "del_beat"
+    or action == "select_beats" or action == "move_beat" or action == "nudge_left"
+    or action == "nudge_right" or action == "add_beat" or action == "del_beat"
   if r.osara_outputMessage and not fast then r.osara_outputMessage(txt("working")) end
   local no_undo = false
-  if action == "next_beat" or action == "prev_beat" then
+  if action == "next_beat" or action == "prev_beat" or action == "select_beats" then
     local it = pick_beat_item(items, r.GetCursorPosition(), true)
     if not it or #rw_markers(it.take) > 0 then no_undo = true end
   end
@@ -3511,7 +3683,10 @@ local ACTION_FILES = {
   { "halve", "reawarp - Halve BPM.lua" },
   { "next_beat", "reawarp - Next beat marker.lua" },
   { "prev_beat", "reawarp - Previous beat marker.lua" },
+  { "select_beats", "reawarp - Select beat markers in time selection.lua" },
   { "move_beat", "reawarp - Move nearest beat marker to edit cursor.lua" },
+  { "nudge_left", "reawarp - Move beat markers left by grid.lua" },
+  { "nudge_right", "reawarp - Move beat markers right by grid.lua" },
   { "add_beat", "reawarp - Add beat marker at edit cursor.lua" },
   { "del_beat", "reawarp - Delete nearest beat marker.lua" },
   { "downbeat", "reawarp - Set downbeat at edit cursor.lua" },
