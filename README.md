@@ -70,9 +70,15 @@ dialog, since it explains what to check next.
 | `reawarp - Analyze beats.lua` | Analyzes and creates beat markers (shows a report) |
 | `reawarp - Warp item to project tempo.lua` | Item follows the project tempo |
 | `reawarp - Tempo map from item.lua` | Project follows the item's tempo |
+| `reawarp - Match groove to first item.lua` | Warps selected items to follow the first selected item's beats |
 | `reawarp - Change song tempo.lua` | Changes the tempo of a song that has a tempo map |
 | `reawarp - Double BPM.lua` | Doubles the BPM: of the project after a tempo map, of the song after a warp |
 | `reawarp - Halve BPM.lua` | Halves the BPM: of the project after a tempo map, of the song after a warp |
+| `reawarp - Next beat marker.lua` | Moves the edit cursor to the next beat marker and announces it via OSARA |
+| `reawarp - Previous beat marker.lua` | Moves the edit cursor to the previous beat marker and announces it via OSARA |
+| `reawarp - Move nearest beat marker to edit cursor.lua` | Moves the nearest beat marker to the edit cursor and updates the tempo map/warp |
+| `reawarp - Add beat marker at edit cursor.lua` | Inserts a beat marker at the edit cursor and updates the tempo map/warp |
+| `reawarp - Delete nearest beat marker.lua` | Deletes the nearest beat marker and updates the tempo map/warp |
 | `reawarp - Set downbeat at edit cursor.lua` | Makes the beat nearest the edit cursor beat 1 |
 | `reawarp - Restore original items.lua` | Returns items to their state before reawarp |
 | `reawarp - Settings.lua` | Settings |
@@ -191,6 +197,7 @@ Each action is a single undo step (Ctrl+Z).
 | Snap to transients | 1 | Moves each beat to the start of the nearest attack (±30 ms) |
 | Item follows tempo changes | 1 | Item timebase after the warp |
 | Change project time sig | 1 | On warp, if the signatures differ: 0 = never, 1 = ask, 2 = always |
+| Sync other items | 0 | On warp/tempo map: 0 = no, 1 = items grouped with the selected item, 2 = all overlapping unlocked items |
 | Beat detector | auto | `auto` (or `beat_this`) uses Beat This!; `builtin` uses the less reliable built-in detector |
 | Language | auto | `auto`, `en`, `pt-BR` or `es`. `auto` uses REAPER's language pack, or else the system language |
 

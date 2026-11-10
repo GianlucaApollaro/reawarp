@@ -20,14 +20,17 @@ function M.new(opts)
     return 1
   end
   function r.format_timestr_pos(t) return string.format("%.3f", t) end
-  function r.Undo_BeginBlock() end
+  function r.Undo_BeginBlock() P.undos = (P.undos or 0) + 1 end
   function r.Undo_EndBlock() end
   function r.PreventUIRefresh() end
   function r.UpdateArrange() end
   function r.UpdateTimeline() end
   function r.UpdateItemInProject() end
   function r.GetCursorPosition() return P.cursor end
+  function r.SetEditCurPos(t) P.cursor = t end
 
+  function r.CountMediaItems() return #P.items end
+  function r.GetMediaItem(_, i) return P.items[i + 1] end
   function r.CountSelectedMediaItems() return #P.sel end
   function r.GetSelectedMediaItem(_, i) return P.sel[i + 1] end
   function r.GetActiveTake(item) return item.take end
@@ -197,9 +200,11 @@ function M.new(opts)
   end
 
   function M.add_item(pos, src, offs, len, name)
-    local take = { ext = {}, name = name or "song", src = src, D_PLAYRATE = 1, D_STARTOFFS = offs or 0, sm = {}, tm = {} }
-    local item = { take = take, D_POSITION = pos, D_LENGTH = len, ext = {}, C_BEATATTACHMODE = -1 }
+    local id = #P.items + 1
+    local take = { ext = { GUID = "{MOCK-" .. tostring(id) .. "}" }, name = name or "song", src = src, D_PLAYRATE = 1, D_STARTOFFS = offs or 0, sm = {}, tm = {} }
+    local item = { take = take, D_POSITION = pos, D_LENGTH = len, ext = { GUID = "{ITEM-" .. tostring(id) .. "}" }, C_BEATATTACHMODE = -1, I_GROUPID = 0 }
     take.item = item
+    take.P_ITEM = item
     P.items[#P.items + 1] = item
     P.sel[#P.sel + 1] = item
     return item
