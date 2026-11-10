@@ -54,6 +54,11 @@ local function breath()
   end
 end
 
+-- What the running action is doing, for the visual indicator (see core.run):
+-- a string key and optionally the fraction done.
+local progress = {}
+local function set_stage(key, frac) progress.key, progress.frac = key, frac end
+
 ---------------------------------------------------------------------------
 -- 1. Analysis engine
 ---------------------------------------------------------------------------
@@ -611,16 +616,19 @@ function M.align_attacks(times, env, envrate, snap)
     local a, z = max(1, i - W), min(nb, i + W)
     local t = times[i] + bo / envrate
     if snap then
+      -- the first clear attack (a local peak well above the typical strength
+      -- at the beats): where many instruments play, the strongest attack can
+      -- come a few ms after the first one, which is what the ear hears
       local r = round(12 * rate)
       local c = floor(t * envrate + 1.5)
-      local bk, bv = nil, 0
+      local typ = (prof[bo][z] - (a > 1 and prof[bo][a - 1] or 0)) / (z - a + 1)
       for k = c - r, c + r do
         local v = d[k] or 0
-        if v > bv then bv, bk = v, k end
+        if v >= 0.8 * typ and v > 0 and v >= (d[k - 1] or 0) and v >= (d[k + 1] or 0) then
+          t = (k - 1) / envrate
+          break
+        end
       end
-      -- a clear attack: well above the typical strength at the beats
-      local typ = (prof[bo][z] - (a > 1 and prof[bo][a - 1] or 0)) / (z - a + 1)
-      if bk and bv >= 0.8 * typ then t = (bk - 1) / envrate end
     end
     out[i] = t
   end
@@ -1046,6 +1054,12 @@ STRINGS.en = {
   working = "reawarp: processing, please wait and do not edit the item until it finishes.",
   cancelled = "reawarp: action cancelled. Undo reverts what it had already changed.",
   select_item = "Select at least one audio item.",
+  st_wait = "working",
+  st_read = "reading the audio",
+  st_detect = "detecting the beats (Beat This!)",
+  st_analyze = "analyzing",
+  st_apply = "applying",
+  st_cancel = "run the action again to cancel",
 
   set_title = "reawarp - Settings",
   set_min_bpm = "Minimum BPM",
@@ -1056,9 +1070,11 @@ STRINGS.en = {
   set_every = "Stretch marker every N beats",
   set_smooth = "Smooth grid (0=off; -1=fixed tempo; N)",
   set_snap = "Snap to transients (1=yes 0=no)",
+  set_fine_snap = "Fine snap: each beat on its attack (1/0)",
   set_follow = "Item follows tempo changes (1/0)",
   set_fix_sig = "Change project time sig (0=no 1=ask 2=always)",
   set_sync = "Sync other items (0=no 1=grouped 2=all)",
+  set_progress = "Visual progress (auto=without OSARA, on, off)",
   set_lang = "Language (auto en pt-BR es)",
 
   set_detector = "Beat detector (auto=Beat This! or builtin)",
@@ -1187,6 +1203,12 @@ STRINGS["pt-BR"] = {
   working = "reawarp: processando, aguarde e não edite o item até terminar.",
   cancelled = "reawarp: ação cancelada. Desfazer reverte o que ela já tinha mudado.",
   select_item = "Selecione pelo menos um item de áudio.",
+  st_wait = "trabalhando",
+  st_read = "lendo o áudio",
+  st_detect = "detectando as batidas (Beat This!)",
+  st_analyze = "analisando",
+  st_apply = "aplicando",
+  st_cancel = "rode a ação de novo para cancelar",
 
   set_title = "reawarp - Configurações",
   set_min_bpm = "BPM mínimo",
@@ -1197,9 +1219,11 @@ STRINGS["pt-BR"] = {
   set_every = "Stretch marker a cada N tempos",
   set_smooth = "Suavizar grade (0=não; -1=tempo fixo; N)",
   set_snap = "Alinhar ao transiente (1=sim 0=não)",
+  set_fine_snap = "Ajuste fino: cada batida no seu ataque (1/0)",
   set_follow = "Item segue mudanças de tempo (1/0)",
   set_fix_sig = "Ajustar compasso do projeto (0=não 1=perguntar 2=sempre)",
   set_sync = "Sincronizar outros itens (0=não 1=agrupados 2=todos)",
+  set_progress = "Progresso visual (auto=sem OSARA, on, off)",
   set_lang = "Idioma (auto en pt-BR es)",
 
   set_detector = "Detector de batidas (auto=Beat This! ou builtin)",
@@ -1328,6 +1352,12 @@ STRINGS.es = {
   working = "reawarp: procesando. Espere y no edite el ítem hasta que termine.",
   cancelled = "reawarp: acción cancelada. Con Deshacer se revierte lo que ya se había cambiado.",
   select_item = "Seleccione al menos un ítem de audio.",
+  st_wait = "procesando",
+  st_read = "leyendo el audio",
+  st_detect = "detectando los pulsos (Beat This!)",
+  st_analyze = "analizando",
+  st_apply = "aplicando",
+  st_cancel = "ejecute la acción de nuevo para cancelar",
 
   set_title = "reawarp - Ajustes",
   set_min_bpm = "BPM mínimo",
@@ -1338,9 +1368,11 @@ STRINGS.es = {
   set_every = "Un stretch marker cada N pulsos",
   set_smooth = "Suavizar cuadrícula (0=no; -1=tempo fijo; N)",
   set_snap = "Ajustar a transitorios (1=sí 0=no)",
+  set_fine_snap = "Ajuste fino: cada pulso en su ataque (1/0)",
   set_follow = "El ítem sigue los cambios de tempo (1/0)",
   set_fix_sig = "Cambiar compás del proyecto (0=no 1=preguntar 2=siempre)",
   set_sync = "Sincronizar otros ítems (0=no 1=agrupados 2=todos)",
+  set_progress = "Progreso visual (auto=sin OSARA, on, off)",
   set_lang = "Idioma (auto en pt-BR es)",
 
   set_detector = "Detector de pulsos (auto=Beat This! o builtin)",
@@ -1519,10 +1551,12 @@ local FIELDS = {
   { "every", 1, "set_every" },
   { "smooth", 0, "set_smooth" },
   { "snap", 1, "set_snap" },
+  { "fine_snap", 0, "set_fine_snap" },
   { "follow", 1, "set_follow" },
   { "fix_sig", 1, "set_fix_sig" },
   { "sync", 0, "set_sync" },
   { "detector", "auto", "set_detector" },
+  { "progress", "auto", "set_progress" },
   { "lang", "auto", "set_lang" },
 }
 
@@ -1581,6 +1615,9 @@ function core.settings_dialog(s)
   if s.timesig:lower() == "auto" or not parse_sig(s.timesig) then s.timesig = "auto" end
   local det = s.detector:lower()
   if det ~= "builtin" and det ~= "beat_this" then s.detector = "auto" else s.detector = det end
+  local pr = s.progress:lower()
+  if pr ~= "on" and pr ~= "off" then s.progress = "auto" else s.progress = pr end
+  s.fine_snap = s.fine_snap ~= 0 and 1 or 0
   local lang = s.lang:lower()
   if lang ~= "auto" and not find_lang(lang) then s.lang = "auto" end
   s.every = math.max(1, math.floor(s.every))
@@ -1904,6 +1941,7 @@ local function write_wav(path, acc, t0, t1, nch, sr)
   local ints = {}
   local scale = nch == 2 and 0.5 or (1 / math.sqrt(nch))
   for pos = 0, n - 1, BLK do
+    set_stage("st_read", pos / n)
     breath()
     local m = math.min(BLK, n - pos)
     buf.clear()
@@ -1971,6 +2009,7 @@ local function run_beat_this(acc, t0, t1, nch)
   local function q(x) return '"' .. native(x) .. '"' end
   local args = table.concat({ q(py), q(BACKEND .. "reawarp_beat_this.py"), q(wav), q(out) }, " ")
   local res, err
+  set_stage("st_detect")
   if coroutine.isyieldable() and r.defer and not core.sync then
     -- in the background: REAPER keeps responding while it runs.
     local launch
@@ -2194,6 +2233,7 @@ local function analyze(it, s)
   local scale = nch == 2 and 0.5 or (1 / math.sqrt(nch))
 
   local function read(pos, n)
+    set_stage("st_analyze", pos / math.max(1, nsamp))
     if nch == 1 and n <= sub_blk then
       buf.clear()
       read_samples(acc, SR, 1, t0 + pos / SR, n, buf)
@@ -2240,10 +2280,13 @@ local function analyze(it, s)
   end
 
   local manual = parse_sig(s.timesig)
+  set_stage("st_analyze", 0)
   local ok, res, err = pcall(dsp.analyze, read, nsamp, SR, {
     min_bpm = s.min_bpm, max_bpm = s.max_bpm, bpm_hint = s.bpm_hint, flex = s.flex,
     snap = s.snap ~= 0, smooth = s.smooth, meter = manual and manual.group or 0, external = ext,
+    ext_snap = (s.fine_snap or 0) ~= 0,
   })
+  set_stage("st_apply")
   r.DestroyAudioAccessor(acc)
   if not ok then return nil, tostring(res) end
   if not res then return nil, txt(err) end
@@ -2491,6 +2534,37 @@ function A.analyze(items, s)
   return table.concat(out, "\n"), spoken
 end
 
+-- When the item starts on its first beat (as a loop does), REAPER's stretching
+-- smears that attack: measured on a loop, noise in the silence before it and a
+-- weaker hit. A segment at rate 1 is played untouched, so the start plays at
+-- its own speed up to a point after the attack (E, item seconds from the
+-- start), and the stretch begins there. Returns E, or nil to stretch from 0.
+local function raw_head(g, used)
+  local first = g.t[used[1]]
+  local E = first + 0.045
+  if first < 0.05 and #used >= 2 and E < g.t[used[2]] - 0.05 then return E end
+end
+
+-- Stretch markers of a warped take: the item start, the used beats (item time
+-- T[j] - X, source s0 + g.t[j]) and the item end. The audio before the first
+-- beat has the stretch of the first interval, so the marker at the start
+-- already puts the first beat in place. With a head at rate 1 (rawE, see
+-- raw_head), the first beat has no marker of its own: one at E ends the head.
+local function put_markers(take, g, used, T, X, s0, newlen, rawE)
+  local first = g.t[used[1]]
+  if rawE then
+    r.SetTakeStretchMarker(take, -1, 0, s0)
+    r.SetTakeStretchMarker(take, -1, rawE, s0 + rawE)
+  elseif first > 1e-3 then
+    r.SetTakeStretchMarker(take, -1, 0, s0)
+  end
+  for k, j in ipairs(used) do
+    if not (k == 1 and rawE) then r.SetTakeStretchMarker(take, -1, T[j] - X, s0 + g.t[j]) end
+  end
+  local last = used[#used]
+  if g.len - g.t[last] > 1e-3 then r.SetTakeStretchMarker(take, -1, newlen, s0 + g.len) end
+end
+
 function A.warp(items, s)
   local out, failed = {}, false
   for _, it in ipairs(items) do
@@ -2537,16 +2611,18 @@ function A.warp(items, s)
       local Abar, m = nearest_bar(P0 + g.t[d])
       local T, X, slope_head
       local u1, u2 = used[1], used[2]
+      local rawE = raw_head(g, used)
       for _ = 1, 256 do
         local qnA = r.TimeMap2_timeToQN(0, Abar)
         T = {}
         for _, j in ipairs(used) do T[j] = r.TimeMap2_QNToTime(0, qnA + (j - d) * sig.qn) end
         -- audio before the first beat gets the same stretch as the first beat
-        -- interval (at rate 1 it would play slower, then jump in speed)
+        -- interval (at rate 1 it would play slower, then jump in speed), except
+        -- a few ms before a first beat right at the start (rawE: rate 1)
         slope_head = (T[u2] - T[u1]) / (g.t[u2] - g.t[u1])
-        local head = g.t[u1] * slope_head
+        local head = rawE and g.t[u1] or g.t[u1] * slope_head
         X = T[u1] - head
-        if X + min_u * slope_head >= 0 then break end
+        if X + min_u * (rawE and 1 or slope_head) >= 0 then break end
         m = m + 1
         Abar = bar_time(m)
       end
@@ -2572,9 +2648,7 @@ function A.warp(items, s)
       r.SetMediaItemInfo_Value(item, "D_POSITION", X)
       r.SetMediaItemInfo_Value(item, "D_LENGTH", newlen)
       set_lastpos(item, X)
-      if g.t[used[1]] > 1e-3 then r.SetTakeStretchMarker(take, -1, 0, s0) end
-      for _, j in ipairs(used) do r.SetTakeStretchMarker(take, -1, T[j] - X, s0 + g.t[j]) end
-      if g.len - g.t[last] > 1e-3 then r.SetTakeStretchMarker(take, -1, newlen, s0 + g.len) end
+      put_markers(take, g, used, T, X, s0, newlen, rawE)
 
       r.SetMediaItemTakeInfo_Value(take, "B_PPITCH", 1)
       r.SetMediaItemInfo_Value(item, "C_BEATATTACHMODE", s.follow ~= 0 and 1 or timebase)
@@ -2583,6 +2657,8 @@ function A.warp(items, s)
 
       -- piecewise-linear warp map W(u): natural seconds from P0 -> warped project time
       local function W(u)
+        if rawE and u <= rawE then return X + u end
+        if rawE and u < g.t[u2] then return X + rawE + (u - rawE) * (T[u2] - X - rawE) / (g.t[u2] - rawE) end
         if u <= g.t[u1] then return T[u1] + (u - g.t[u1]) * slope_head end
         if u >= g.t[last] then return T[last] + (u - g.t[last]) * slope_tail end
         local lo, hi = 1, #used - 1
@@ -2605,10 +2681,15 @@ function A.warp(items, s)
           local _, _, s0_f = r.GetTakeStretchMarker(f.take, idx_f)
           r.DeleteTakeStretchMarkers(f.take, idx_f)
           r.SetTakeStretchMarker(f.take, -1, 0, s0_f)
-          for _, j in ipairs(used) do
-            local u = g.t[j]
+          -- the guide's markers, so the follower stretches exactly like it
+          local pts = {}
+          if rawE then pts[1] = rawE end
+          for k, j in ipairs(used) do
+            if not (k == 1 and rawE) then pts[#pts + 1] = g.t[j] end
+          end
+          for _, u in ipairs(pts) do
             if u > f.u0 + 1e-3 and u < f.u1 - 1e-3 then
-              r.SetTakeStretchMarker(f.take, -1, T[j] - Xf, s0_f + (u - f.u0))
+              r.SetTakeStretchMarker(f.take, -1, W(u) - Xf, s0_f + (u - f.u0))
             end
           end
           r.SetTakeStretchMarker(f.take, -1, newlen_f, s0_f + f.len)
@@ -2790,8 +2871,21 @@ function A.tempo(items, s)
   end
 
   local avg = 60 * (#g.t - j0) * qn / (g.t[#g.t] - g.t[j0])
-  return txt("tempo_line",
+  local out = txt("tempo_line",
     it.name, #used + 1, tstr(R), mR + 1, sig_str(sig), avg, delta)
+
+  -- the other selected items follow the new tempo map, as with the warp
+  -- (keeping the map just made, and without syncing items a second time)
+  if #items > 1 then
+    local others = {}
+    for k = 2, #items do others[#others + 1] = items[k] end
+    local fixed, sync = s._fixed_tempo, s.sync
+    s._fixed_tempo, s.sync = false, 0
+    local w = A.warp(others, s)
+    s._fixed_tempo, s.sync = fixed, sync
+    out = out .. "\n" .. w
+  end
+  return out
 end
 
 -- Warp items[2..#items] so their beats lock onto the beats of items[1] (the
@@ -2845,7 +2939,8 @@ function A.match(items, s)
 
       local T = {}
       for _, j in ipairs(used) do T[j] = ref_time(a_ref + (j - u1)) end
-      local head = g.t[u1] * (T[u2] - T[u1]) / (g.t[u2] - g.t[u1])
+      local rawE = raw_head(g, used)
+      local head = rawE and g.t[u1] or g.t[u1] * (T[u2] - T[u1]) / (g.t[u2] - g.t[u1])
       local X = T[u1] - head
 
       local idx = r.SetTakeStretchMarker(take, -1, 0)
@@ -2860,9 +2955,7 @@ function A.match(items, s)
       r.SetMediaItemInfo_Value(item, "D_POSITION", P0)
       r.SetMediaItemInfo_Value(item, "D_LENGTH", newlen)
       set_lastpos(item, P0)
-      if g.t[u1] > 1e-3 then r.SetTakeStretchMarker(take, -1, 0, s0) end
-      for _, j in ipairs(used) do r.SetTakeStretchMarker(take, -1, T[j] - X, s0 + g.t[j]) end
-      if g.len - g.t[last] > 1e-3 then r.SetTakeStretchMarker(take, -1, newlen, s0 + g.len) end
+      put_markers(take, g, used, T, X, s0, newlen, rawE)
 
       r.SetMediaItemTakeInfo_Value(take, "B_PPITCH", 1)
       r.SetMediaItemInfo_Value(item, "C_BEATATTACHMODE", s.follow ~= 0 and 1 or timebase)
@@ -2925,12 +3018,17 @@ function A.retempo(items, s)
       note = txt("retempo_static")
     end
   end
-  if s.follow ~= 0 and r.CountMediaItems then
+  -- other items follow the change only as "Sync other items" says (0 = none,
+  -- 1 = items grouped with the selected one, 2 = all overlapping)
+  local sync = tonumber(s.sync) or 0
+  local gid = it and r.GetMediaItemInfo_Value(it.item, "I_GROUPID") or 0
+  if s.follow ~= 0 and r.CountMediaItems and (sync == 2 or (sync == 1 and gid ~= 0)) then
     for i = 0, r.CountMediaItems(0) - 1 do
       local other = r.GetMediaItem(0, i)
       if other and (not it or other ~= it.item) then
         local lock = r.GetMediaItemInfo_Value(other, "C_LOCK") or 0
-        if (math.floor(lock) & 1) == 0 then
+        local ogid = r.GetMediaItemInfo_Value(other, "I_GROUPID") or 0
+        if (math.floor(lock) & 1) == 0 and (sync == 2 or ogid == gid) then
           local pos = r.GetMediaItemInfo_Value(other, "D_POSITION")
           local len = r.GetMediaItemInfo_Value(other, "D_LENGTH")
           if pos < t1 - 1e-6 and pos + len > t0 + 1e-6 then
@@ -3458,8 +3556,38 @@ function core.run(action)
   if not no_undo then r.Undo_BeginBlock() end
   local co = coroutine.create(function() return A[action](items, s) end)
   local finished = false
+
+  -- Visual indicator for who does not hear OSARA: a tooltip near the mouse
+  -- (it takes no focus), with the stage and the time elapsed. Off with OSARA
+  -- by default, since screen readers may read every update of a tooltip.
+  local pmode = tostring(s.progress or "auto"):lower()
+  local show = r.TrackCtl_SetToolTip and r.GetMousePosition
+    and (pmode == "on" or (pmode == "auto" and not r.osara_outputMessage))
+  local t_start, t_tip, tip_x, tip_y, tip_text = clock(), 0, nil, nil, nil
+  progress.key, progress.frac = nil, nil
+  local function tooltip(text)
+    if not show or text == tip_text then return end
+    if not tip_x then
+      tip_x, tip_y = r.GetMousePosition()
+      tip_x, tip_y = tip_x + 16, tip_y + 24
+    end
+    r.TrackCtl_SetToolTip(text, tip_x, tip_y, true)
+    tip_text = text
+  end
+  local function update_tip()
+    local el = clock() - t_start
+    if el < 0.5 or clock() - t_tip < 0.25 then return end -- no flash on quick actions
+    t_tip = clock()
+    local stage = txt(progress.key or "st_wait")
+    if progress.key == "st_read" and progress.frac then
+      stage = string.format("%s %d%%", stage, math.floor(100 * progress.frac))
+    end
+    tooltip(string.format("reawarp: %s... %d s\n%s", stage, math.floor(el), txt("st_cancel")))
+  end
+
   local function close()
     finished = true
+    if tip_text then r.TrackCtl_SetToolTip("", 0, 0, true); tip_text = nil end
     r.DeleteExtState("reawarp", "busy", false)
     r.UpdateArrange()
     r.UpdateTimeline()
@@ -3479,7 +3607,7 @@ function core.run(action)
       ok, result, spoken = coroutine.resume(co, direct_read(table.unpack(result.read)))
     end
     r.PreventUIRefresh(-1)
-    if coroutine.status(co) ~= "dead" then return false end
+    if coroutine.status(co) ~= "dead" then update_tip(); return false end
     close()
     if not ok then report(txt("err_unexpected", tostring(result)))
     elseif result ~= nil then

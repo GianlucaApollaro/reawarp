@@ -1,4 +1,4 @@
-# reawarp
+# reawarp: Warp, Tempo Map and Groove Match for REAPER
 
 *[Leia em português](README.pt-BR.md) · [Leer en español](README.es.md)*
 
@@ -9,10 +9,16 @@
 > Contact: gabrielschuck.tecladista@gmail.com
 
 Audio warping for REAPER, in the spirit of Ableton Live's Warp: reawarp detects the beats
-of a song (including songs whose tempo drifts or changes) and either
+of a song (including songs whose tempo drifts or changes) and then
 
-- **Warp**: fits the item to the project tempo (a stretch marker on each beat), or
-- **Tempo map**: makes the project follow the song (a tempo marker on each beat).
+- **Warp**: fits the item to the project tempo (a stretch marker on each beat),
+- **Tempo map**: makes the project follow the song (a tempo marker on each beat), or
+- **Groove Match**: makes other items (a loop, another recording) follow the beats of a
+  reference item, without touching the project tempo.
+
+Wrong beats can be fixed from the keyboard: move to the next or previous beat marker (OSARA
+announces bar, beat and BPM), and move, add or delete a marker; the warp, tempo map or
+groove match is applied again by itself.
 
 Written in Lua; beats are detected by the neural detector
 [Beat This!](https://github.com/CPJKU/beat_this), installed with one click (no Python
@@ -147,8 +153,14 @@ default, on the project (*Project settings*).
      beat; use them when the analysis reports a BPM 1.5× lower than expected.
    - **Wrong beat 1** → place the edit cursor on the correct beat 1 and run *Set downbeat
      at edit cursor*.
-   - **A wrong beat** → move or delete that `RW` marker by hand. The markers are the grid
-     the warp uses; reawarp does not recreate them if they exist.
+   - **A wrong beat** → go to it with *Next beat marker* / *Previous beat marker* (OSARA
+     announces the marker, for example "RW 3.2 (beat 10 of 120, 98.5 BPM)"), then place
+     the edit cursor where the beat really is and run *Move nearest beat marker to edit
+     cursor*; *Add beat marker at edit cursor* fills a beat the detector missed, and
+     *Delete nearest beat marker* removes an extra one. If the item already has a warp,
+     tempo map or groove match, it is applied again by itself. You can also move or
+     delete the `RW` markers by hand. The markers are the grid the warp uses; reawarp
+     does not recreate them if they exist.
 3. Run **Warp** or **Tempo map**.
    - *Warp*: the song's downbeat goes to the bar line nearest to where it already is, and
      every beat (or every N beats) gets a stretch marker on the grid. The song then plays
@@ -166,6 +178,10 @@ default, on the project (*Project settings*).
      restore the previous one after it) so that the bars match. The item keeps its time
      stretch and stretch marker modes and, by default, switches to the "beats (position,
      length, rate)" timebase so it stays in sync if the project tempo changes later.
+     With several items selected, each one is warped by its own beats. When the item
+     starts right on its first beat (a loop), its first few milliseconds play at their own
+     speed, because REAPER's stretching smears an attack at the very start of an item;
+     the stretch begins just after that attack.
    - *Tempo map*: the project tempo follows the song from before the music starts, so the
      intro, pickup beats and count-in are already at the song's tempo: from the project
      start when no tempo marker comes before the item, otherwise from the bar line where
@@ -174,7 +190,21 @@ default, on the project (*Project settings*).
      pickups included, gets a tempo marker. Afterwards the item follows later tempo
      changes like a warped item ("beats (position, length, rate)" timebase), or keeps its
      own timebase if *Item follows tempo changes* is 0. Existing tempo markers in the
-     item's range are replaced.
+     item's range are replaced. With several items selected, the first one (in track
+     order) makes the tempo map and the others are warped to it, as with *Warp*.
+   - *Groove Match*: select the reference item (for example a song or drums) and the
+     items that should follow it (for example a loop). The reference is the first selected
+     item in track order, so put it on the upper track. Each of the other items gets
+     stretch markers so that its beats follow the reference's beats, including its
+     accelerations and slowdowns, while it stays where you placed it; the reference and
+     the project tempo are not changed. Beats are matched to the nearest beats of the
+     reference, not bar to bar, so place the item near the beat where it should start.
+     *Double BPM* and *Halve BPM* also work on matched items.
+
+Multitrack recordings: with *Sync other items* set to 1 in the settings, a warp or tempo
+map applied to one item (for example the drums) is applied in the same way to the items
+grouped with it (select them and press Ctrl+G, *Group items*), so the whole band stays together; 2 includes every
+unlocked item that overlaps it. By default (0) only the selected items are changed.
 
 To make a song with a tempo map faster or slower, use **Change song tempo**: REAPER's
 project BPM only changes the tempo up to the next tempo marker (one per beat here), so this
@@ -195,10 +225,12 @@ Each action is a single undo step (Ctrl+Z).
 | Stretch marker every N beats | 1 | Use 4 (one per bar) for fewer artifacts |
 | Smooth grid | 0 | -1 = fit one constant tempo; N = smooth over ±N beats |
 | Snap to transients | 1 | Moves each beat to the start of the nearest attack (±30 ms) |
+| Fine snap | 0 | With Beat This!, 1 puts each beat on its own first attack (within 12 ms) instead of only correcting the average offset; try it when some beats sound a little late in dense passages |
 | Item follows tempo changes | 1 | Item timebase after the warp |
 | Change project time sig | 1 | On warp, if the signatures differ: 0 = never, 1 = ask, 2 = always |
 | Sync other items | 0 | On warp/tempo map: 0 = no, 1 = items grouped with the selected item, 2 = all overlapping unlocked items |
 | Beat detector | auto | `auto` (or `beat_this`) uses Beat This!; `builtin` uses the less reliable built-in detector |
+| Visual progress | auto | A tooltip near the mouse shows the stage and the time elapsed while an action runs. `auto` shows it only without OSARA (screen readers may read every update); `on` or `off` |
 | Language | auto | `auto`, `en`, `pt-BR` or `es`. `auto` uses REAPER's language pack, or else the system language |
 
 ## Translations
@@ -215,7 +247,8 @@ captions must not contain commas (REAPER's input dialog uses them as separators)
 
 The first section of `reawarp.lua` (independent of REAPER):
 
-1. Audio is read at 11025 Hz and split into 4 bands (low, low-mid, mid, high). The flux
+1. Audio is mixed to mono (all of its channels, so multichannel items work too), read
+   at 11025 Hz and split into 4 bands (low, low-mid, mid, high). The flux
    of log energy between 11.6 ms frames gives the onset strength curve.
 2. Global tempo by autocorrelation, with a preference around 120 BPM (or your hint).
 3. Local tempo curve (8 s windows) that follows accelerandos and drifts.
@@ -286,3 +319,5 @@ must be kept.
 ## Acknowledgments
 
 - [vrivrixd](https://github.com/vrivrixd), for the Spanish translation.
+- [GianlucaApollaro](https://github.com/GianlucaApollaro), for Groove Match, beat marker
+  navigation and editing, multitrack sync and multichannel analysis.

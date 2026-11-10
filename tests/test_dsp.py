@@ -228,6 +228,13 @@ def main():
     print(f'{"  median offset":<24} {lag:+.1f} ms')
     results.append((recall, ok and abs(lag) <= 6))
 
+    # 15. same with the fine snap (each beat on its own attack): no extra jitter
+    recall, ok = check('external late, fine snap', lua, dsp, truth, y, dict(opts, external=ext, ext_snap=True), want_down=0)
+    res, beats, _ = run(lua, dsp, y, dict(opts, external=ext, ext_snap=True))
+    err = np.array([b - truth[np.argmin(np.abs(truth - b))] for b in beats]) * 1000
+    print(f'{"  median / spread":<24} {np.median(err):+.1f} ms / {np.percentile(np.abs(err - np.median(err)), 90):.1f} ms')
+    results.append((recall, ok and abs(np.median(err)) <= 6 and np.percentile(np.abs(err - np.median(err)), 90) <= 6))
+
     if len(sys.argv) > 1:
         import subprocess
         ff = os.environ.get('FFMPEG', 'ffmpeg')

@@ -1,4 +1,4 @@
-# reawarp
+# reawarp: Warp, Mapa de tempo e Groove Match para o REAPER
 
 *[Read in English](README.md) · [Leer en español](README.es.md)*
 
@@ -11,8 +11,14 @@
 Warp de áudio para o REAPER, no estilo do Warp do Ableton Live: o reawarp detecta as
 batidas de uma música (inclusive com tempo variável) e
 
-- **Warp**: encaixa o item no tempo do projeto (stretch markers em cada batida), ou
-- **Mapa de tempo**: faz o projeto seguir a música (marcadores de tempo em cada batida).
+- **Warp**: encaixa o item no tempo do projeto (stretch markers em cada batida),
+- **Mapa de tempo**: faz o projeto seguir a música (marcadores de tempo em cada batida), ou
+- **Groove Match** (*Combinar groove*): faz outros itens (um loop, outra gravação) seguirem
+  as batidas de um item de referência, sem mexer no tempo do projeto.
+
+As batidas erradas podem ser corrigidas pelo teclado: vá ao marcador de batida seguinte ou
+anterior (o OSARA fala compasso, tempo e BPM) e mova, adicione ou remova um marcador; o
+warp, o mapa de tempo ou o groove match é aplicado de novo sozinho.
 
 Escrito em Lua; as batidas são detectadas pelo detector com rede neural
 [Beat This!](https://github.com/CPJKU/beat_this), instalado com um clique (não é preciso
@@ -151,8 +157,15 @@ markers definidos no item (propriedades do item) ou, se o item usar o padrão, n
      pontuada como tempo; use-as quando a análise der um BPM 1,5× menor que o esperado.
    - **Tempo 1 errado** → coloque o cursor de edição sobre o tempo 1 correto e rode
      *Set downbeat at edit cursor*.
-   - **Uma batida errada** → mova ou apague o marcador `RW` à mão. Os marcadores são
-     a grade usada pelo warp; o reawarp não os recria se já existirem.
+   - **Uma batida errada** → vá até ela com *Próximo marcador de batida* / *Marcador de
+     batida anterior* (o OSARA fala o marcador, por exemplo "RW 3.2 (batida 10 de 120,
+     98,5 BPM)"), coloque o cursor de edição onde a batida realmente está e rode *Mover
+     marcador de batida mais próximo para o cursor de edição*; *Adicionar marcador de
+     batida no cursor de edição* preenche uma batida que o detector perdeu, e *Remover
+     marcador de batida mais próximo* tira uma sobrando. Se o item já tiver warp, mapa de
+     tempo ou groove match, ele é aplicado de novo sozinho. Também dá para mover ou apagar
+     os marcadores `RW` à mão. Os marcadores são a grade usada pelo warp; o reawarp não os
+     recria se já existirem.
 3. Rode **Warp** ou **Mapa de tempo**.
    - *Warp*: o tempo forte da música vai para a barra de compasso mais próxima de onde ele
      já está, e cada batida (ou a cada N tempos) recebe um stretch marker no grid. A música
@@ -171,6 +184,10 @@ markers definidos no item (propriedades do item) ou, se o item usar o padrão, n
      anterior depois dele) para os compassos coincidirem. O item mantém o seu modo de time
      stretch e de stretch markers e, por padrão, passa a usar a base de tempo "beats
      (position, length, rate)" para continuar sincronizado se o tempo do projeto mudar.
+     Com vários itens selecionados, cada um recebe o warp pelas suas próprias batidas.
+     Quando o item começa bem na primeira batida (um loop), os primeiros milissegundos
+     tocam na velocidade original, porque o stretch do REAPER borra um ataque logo no
+     início do item; o esticamento começa logo depois desse ataque.
    - *Mapa de tempo*: o tempo do projeto segue a música desde antes de ela começar, então a
      introdução, a anacruse e a contagem já ficam no tempo da música: desde o início do
      projeto, se não houver marcador de tempo antes do item, ou desde a barra em que o item
@@ -179,7 +196,24 @@ markers definidos no item (propriedades do item) ou, se o item usar o padrão, n
      inclusive as da anacruse, recebe um marcador de tempo. Depois, o item acompanha
      mudanças de tempo como um item com warp (base de tempo "beats (position, length,
      rate)"), ou mantém a sua base de tempo se *Item segue mudanças de tempo* for 0.
-     Marcadores de tempo existentes na região do item são substituídos.
+     Marcadores de tempo existentes na região do item são substituídos. Com vários itens
+     selecionados, o primeiro (na ordem das faixas) cria o mapa de tempo e os outros
+     recebem o warp para ele, como no *Warp*.
+   - *Groove Match* (*Combinar groove*): selecione o item de referência (por exemplo uma
+     música ou a bateria) e os itens que devem segui-lo (por exemplo um loop). A
+     referência é o primeiro item selecionado na ordem das faixas, então coloque-a na
+     faixa de cima. Cada um dos outros itens recebe stretch markers para que as suas
+     batidas sigam as da referência, inclusive nas acelerações e desacelerações, e fica
+     onde você o colocou; a referência e o tempo do projeto não mudam. As batidas são
+     encaixadas nas batidas mais próximas da referência, não compasso com compasso, então
+     coloque o item perto da batida onde ele deve começar. *Dobrar o BPM* e *BPM pela
+     metade* também funcionam nos itens ajustados.
+
+Gravações multipista: com *Sincronizar outros itens* em 1 nas configurações, o warp ou o
+mapa de tempo aplicado a um item (por exemplo a bateria) é aplicado do mesmo jeito aos itens
+agrupados com ele (selecione-os e aperte Ctrl+G, *Group items*), e a banda toda continua
+junta; 2 inclui todos os itens desbloqueados no mesmo trecho. No padrão (0), só os itens
+selecionados mudam.
 
 Para deixar mais rápida ou mais lenta uma música com mapa de tempo, use **Change song
 tempo** (no menu: *Alterar o tempo da música*). O BPM do projeto no REAPER só muda o tempo
@@ -201,10 +235,12 @@ Cada ação é um único passo de desfazer (Ctrl+Z).
 | Stretch marker a cada N tempos | 1 | Use 4 (um por compasso) para menos artefatos |
 | Suavizar grade | 0 | -1 = ajusta um tempo constante; N = suaviza com ±N batidas |
 | Alinhar ao transiente | 1 | Ajusta cada batida ao início do ataque mais próximo (±30 ms) |
+| Ajuste fino | 0 | Com o Beat This!, 1 coloca cada batida no seu primeiro ataque (até 12 ms) em vez de só corrigir o deslocamento médio; experimente quando algumas batidas soarem um pouco atrasadas em trechos cheios |
 | Item segue mudanças de tempo | 1 | Base de tempo do item após o warp |
 | Ajustar compasso do projeto | 1 | No warp, se a fórmula difere: 0 = nunca, 1 = perguntar, 2 = sempre |
 | Sincronizar outros itens | 0 | No warp/mapa de tempo: 0 = não, 1 = itens agrupados com o selecionado, 2 = todos os desbloqueados sobrepostos |
 | Detector de batidas | auto | `auto` (ou `beat_this`) usa o Beat This!; `builtin` usa o detector interno, menos confiável |
+| Progresso visual | auto | Uma dica (tooltip) perto do mouse mostra a etapa e o tempo decorrido enquanto uma ação roda. `auto` mostra só sem o OSARA (leitores de tela podem ler cada atualização); `on` ou `off` |
 | Idioma | auto | `auto`, `en`, `pt-BR` ou `es`. `auto` usa o langpack do REAPER ou, sem ele, o idioma do sistema |
 
 ## Traduções
@@ -221,7 +257,8 @@ vírgulas (o diálogo do REAPER as usa como separador).
 
 A primeira seção de `reawarp.lua` (independente do REAPER):
 
-1. O áudio é lido a 11025 Hz e dividido em 4 bandas (graves, médio-graves, médios, agudos).
+1. O áudio é mixado em mono (todos os canais, então itens multicanal também funcionam),
+   lido a 11025 Hz e dividido em 4 bandas (graves, médio-graves, médios, agudos).
    O fluxo de energia logarítmica entre quadros de 11,6 ms gera a curva de "ataques".
 2. Tempo global por autocorrelação com preferência por ~120 BPM (ou pela sua dica).
 3. Curva de tempo local (janelas de 8 s), que acompanha acelerandos e oscilações.
@@ -292,3 +329,6 @@ copyright original.
 ## Agradecimentos
 
 - A [vrivrixd](https://github.com/vrivrixd), pela tradução para o espanhol.
+- A [GianlucaApollaro](https://github.com/GianlucaApollaro), pelo Groove Match, pela
+  navegação e edição dos marcadores de batida, pela sincronização multipista e pela
+  análise multicanal.
