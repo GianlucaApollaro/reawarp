@@ -17,13 +17,20 @@ de una canción (incluso con tempo variable) y
   los pulsos de un ítem de referencia, sin cambiar el tempo del proyecto.
 
 Los pulsos incorrectos se pueden corregir con el teclado: vaya al marcador de pulso
-siguiente o anterior (OSARA anuncia compás, pulso y BPM) y mueva, añada o elimine un
-marcador; el warp, el mapa de tempo o el groove match se vuelve a aplicar solo.
+siguiente o anterior (OSARA anuncia compás, pulso y BPM; sin OSARA se muestran en una nota
+junto al ratón) y mueva, añada o elimine un marcador; el warp, el mapa de tempo o el groove
+match se vuelve a aplicar solo.
+
+Se pueden procesar varios ítems a la vez, por ejemplo una canción y un loop en un remix, o
+las pistas de una grabación multipista; vea [Varios ítems a la vez](#varios-ítems-a-la-vez).
 
 Está escrito en Lua; los pulsos los detecta el detector con red neuronal
 [Beat This!](https://github.com/CPJKU/beat_this), que se instala con un clic (no hace falta
 tener Python instalado). Toda la interfaz usa los menús y diálogos nativos de REAPER, así que
-funciona con lectores de pantalla (OSARA). Los mensajes aparecen en español, portugués o
+funciona con lectores de pantalla (OSARA). Sin OSARA todo es también visual: los resultados
+aparecen en una ventana, una acción en curso muestra su progreso en una ayuda emergente
+(tooltip) junto al ratón, y al moverse entre marcadores de pulso el marcador se muestra en
+una nota junto al ratón que desaparece sola. Los mensajes aparecen en español, portugués o
 inglés según el ajuste *Idioma*.
 
 ## Instalación
@@ -64,7 +71,9 @@ unos segundos y aprovecha lo que ya se descargó.
 REAPER sigue respondiendo mientras una acción trabaja: Beat This! se ejecuta en segundo
 plano y el análisis le devuelve la ventana a REAPER muchas veces por segundo, así que puede
 seguir moviéndose por el proyecto (no edite el ítem que se está analizando). El resultado
-se anuncia por OSARA; sin OSARA se muestra en una ventana. Los diálogos solo aparecen
+se anuncia por OSARA; sin OSARA se muestra en una ventana (al moverse entre marcadores de
+pulso, el marcador se muestra en una nota junto al ratón, ya que una ventana en cada
+pulsación de tecla estorbaría). Los diálogos solo aparecen
 cuando reawarp necesita una respuesta (compás, eliminar un mapa de tempo, un nuevo BPM) y
 en los ajustes. Ejecutar de nuevo la misma acción mientras trabaja la cancela (Deshacer
 revierte lo que ya había cambiado); iniciar otra acción de reawarp mientras tanto solo
@@ -80,15 +89,17 @@ Las acciones tienen nombre en inglés en la lista de acciones:
 | `reawarp - Analyze beats.lua` | Analiza y crea marcadores de pulso (muestra un informe) |
 | `reawarp - Warp item to project tempo.lua` | El ítem sigue el tempo del proyecto |
 | `reawarp - Tempo map from item.lua` | El proyecto sigue el tempo del ítem |
+| `reawarp - Fixed project tempo from item.lua` | El proyecto toma el BPM del ítem, como un tempo fijo (sin mapa de tempo) |
 | `reawarp - Match groove to first item.lua` | Ajusta los ítems seleccionados a los pulsos del primer ítem seleccionado |
 | `reawarp - Change song tempo.lua` | Cambia el tempo de una canción que tiene mapa de tempo |
 | `reawarp - Double BPM.lua` | Duplica el BPM: del proyecto después de un mapa de tempo, de la canción después de un warp |
 | `reawarp - Halve BPM.lua` | Reduce el BPM a la mitad: del proyecto después de un mapa de tempo, de la canción después de un warp |
-| `reawarp - Next beat marker.lua` | Mueve el cursor de edición al siguiente marcador de pulso y lo anuncia por OSARA |
-| `reawarp - Previous beat marker.lua` | Mueve el cursor de edición al marcador de pulso anterior y lo anuncia por OSARA |
+| `reawarp - Next beat marker.lua` | Mueve el cursor de edición al siguiente marcador de pulso y lo anuncia por OSARA (sin OSARA, en una nota junto al ratón) |
+| `reawarp - Previous beat marker.lua` | Mueve el cursor de edición al marcador de pulso anterior y lo anuncia por OSARA (sin OSARA, en una nota junto al ratón) |
 | `reawarp - Move nearest beat marker to edit cursor.lua` | Mueve el marcador de pulso más cercano al cursor y actualiza el mapa de tempo/warp |
 | `reawarp - Add beat marker at edit cursor.lua` | Añade un marcador de pulso en el cursor de edición y actualiza el mapa de tempo/warp |
 | `reawarp - Delete nearest beat marker.lua` | Elimina el marcador de pulso más cercano y actualiza el mapa de tempo/warp |
+| `reawarp - Shift beats by half a beat.lua` | Desplaza medio pulso los pulsos antes del cursor de edición (o en la selección de tiempo), donde el detector marcó los contratiempos, y actualiza el mapa de tempo/warp |
 | `reawarp - Set downbeat at edit cursor.lua` | Convierte en pulso 1 el pulso más cercano al cursor de edición |
 | `reawarp - Restore original items.lua` | Devuelve los ítems al estado que tenían antes de reawarp |
 | `reawarp - Settings.lua` | Ajustes |
@@ -116,7 +127,7 @@ detector integrado; volver a ejecutar el instalador lo repara.
   `backend/install_beat_this.bat` (Windows) o `backend/install_beat_this.sh` (macOS /
   Linux). Descarga unos 350 MB y ocupa unos 800 MB en disco, todo dentro de `backend/`
   (`uv`, `python`, `env` y `models`). Para desinstalarlo, elija *Desinstalar el detector
-  Beat This!* en el menú de reawarp (aparece cuando Beat This! está instalado): borra esas
+  Beat This!* en el menú de reawarp (cuando Beat This! está instalado, aparece en lugar de *Instalar el detector Beat This!*): borra esas
   cuatro carpetas y libera unos 0,8 GB (3 GB en la versión para GPU); reawarp sigue
   instalado.
   La ventana del instalador se cierra sola al terminar, y reawarp muestra el resultado en
@@ -174,6 +185,14 @@ usa el predeterminado, en el proyecto (*Project settings*).
      ítem ya tiene warp, mapa de tempo o groove match, se vuelve a aplicar solo. También
      puede mover o borrar a mano los marcadores `RW`. Los marcadores son la cuadrícula
      que usa el warp; reawarp no los vuelve a crear si ya existen.
+   - **Parte de la canción en el contratiempo** → en una introducción solo con voz, o en un
+     corte, el detector puede marcar los contratiempos; donde entra la banda, vuelve a los
+     pulsos, y ahí el intervalo entre dos marcadores de pulso es de 1,5 pulsos (o 0,5).
+     Coloque el cursor de edición ahí (hasta 3 pulsos de distancia sirve) y ejecute *Desplazar pulsos medio pulso*: los pulsos
+     antes del cursor se mueven medio pulso, y el warp, el mapa de tempo o el groove match
+     se vuelve a aplicar. Para un tramo en medio de la canción, selecciónelo antes con una
+     selección de tiempo. La dirección es la que convierte el salto en un pulso entero; si
+     no hay ese salto en los bordes, no se cambia nada.
 3. Ejecute **Warp** o **Mapa de tempo**.
    - *Warp*: el tiempo fuerte de la canción va a la línea de compás más cercana a donde ya
      está, y cada pulso (o cada N pulsos) recibe un stretch marker sobre la cuadrícula.
@@ -193,7 +212,8 @@ usa el predeterminado, en el proyecto (*Project settings*).
      coincidan. El ítem conserva sus modos de time stretch y de stretch markers y, por
      defecto, pasa a la base de tiempo "beats (position, length, rate)" para seguir
      sincronizado si el tempo del proyecto cambia más adelante.
-     Con varios ítems seleccionados, cada uno recibe el warp según sus propios pulsos.
+     Con varios ítems seleccionados, cada uno recibe el warp según sus propios pulsos (vea
+     [Varios ítems a la vez](#varios-ítems-a-la-vez)).
      Cuando el ítem empieza justo en su primer pulso (un loop), sus primeros milisegundos
      suenan a su velocidad original, porque el stretch de REAPER emborrona un ataque justo
      al inicio de un ítem; el estiramiento empieza justo después de ese ataque.
@@ -208,7 +228,8 @@ usa el predeterminado, en el proyecto (*Project settings*).
      rate)"), o conserva su propia base de tiempo si *El ítem sigue los cambios de tempo*
      es 0. Los marcadores de tempo que ya había en la zona del ítem se reemplazan. Con
      varios ítems seleccionados, el primero (en el orden de las pistas) crea el mapa de
-     tempo y los demás reciben el warp hacia él, como con *Warp*.
+     tempo y los demás reciben el warp hacia él, como con *Warp* (vea
+     [Varios ítems a la vez](#varios-ítems-a-la-vez)).
    - *Groove Match* (*Igualar groove*): seleccione el ítem de referencia (por ejemplo una
      canción o la batería) y los ítems que deben seguirlo (por ejemplo un loop). La
      referencia es el primer ítem seleccionado en el orden de las pistas, así que póngala
@@ -219,18 +240,68 @@ usa el predeterminado, en el proyecto (*Project settings*).
      así que coloque el ítem cerca del pulso donde debe empezar. *Duplicar el BPM* y
      *Reducir el BPM a la mitad* también funcionan en los ítems igualados.
 
+### Varios ítems a la vez
+
+Seleccione los ítems y ejecute la acción. Se toman en el orden de las pistas: el ítem de la
+pista de arriba (la primera pista del proyecto, cuando están en pistas distintas) es la
+**referencia**, como en *Groove Match* y en *Sincronizar otros ítems* (abajo). Los ítems
+MIDI se ignoran.
+
+- **Warp**: no hay ítem de referencia, la referencia es el tempo del proyecto. Cada ítem se
+  analiza y recibe el warp según sus propios pulsos, sobre la cuadrícula del proyecto; así,
+  una canción y un loop grabados a tempos distintos quedan los dos al BPM del proyecto,
+  juntos.
+- **Mapa de tempo**: el ítem de referencia crea el mapa de tempo, y todos los demás ítems
+  seleccionados reciben el warp hacia ese mapa; así toman el tempo de la referencia, con
+  sus aceleraciones y desaceleraciones. Ejemplo: en un remix, ponga la canción en la pista
+  de arriba y un loop (batería, una línea de bajo) en una pista de abajo, deje el loop
+  cerca del compás donde debe empezar, seleccione los dos y ejecute *Mapa de tempo*: el
+  tempo del proyecto sigue la canción, y el loop la sigue compás a compás.
+- **Groove Match**: el ítem de referencia y el tempo del proyecto no cambian; los demás
+  ítems siguen los pulsos de la referencia.
+- **Fixed project tempo from item** usa solo el primer ítem seleccionado.
+
+**Canción y loop: ¿Mapa de tempo o Groove Match?** En los dos casos el loop pasa a seguir
+el tempo de la canción, pulso a pulso. La diferencia está en la cuadrícula del proyecto:
+
+- Con *Mapa de tempo*, el tempo del proyecto (metrónomo, cuadrícula, MIDI, nuevas
+  grabaciones) también sigue la canción, así que todo lo que se añada después queda a
+  tempo con la canción y el loop. Es la opción habitual para un remix o para añadir
+  instrumentos a una grabación.
+- Con *Groove Match*, solo el loop sigue la canción; el tempo del proyecto queda como
+  estaba. Úselo cuando el proyecto ya tiene un tempo que no debe cambiar (por ejemplo otras
+  canciones en el mismo proyecto), y el loop solo tiene que encajar en la canción.
+- Con *Warp* (seleccionando los dos), es al revés: la canción se estira al tempo fijo del
+  proyecto, y el loop también.
+
+Con *Un stretch marker cada N pulsos* en 0 (automático), cada ítem solo recibe marcadores
+donde su tempo se aleja de la referencia (la cuadrícula del proyecto, o el mapa de tempo
+creado por el ítem de referencia), dentro de la tolerancia de *Marcadores automáticos*.
+
 Grabaciones multipista: con *Sincronizar otros ítems* en 1 en los ajustes, el warp o el mapa
 de tempo aplicado a un ítem (por ejemplo la batería) se aplica de la misma manera a los
 ítems agrupados con él (selecciónelos y pulse Ctrl+G, *Group items*), y toda la banda sigue
 junta; 2 incluye todos los ítems desbloqueados en la misma zona. Por defecto (0), solo
 cambian los ítems seleccionados.
 
+Para un loop, o una canción con tempo estable, **Fixed project tempo from item** (en el menú:
+*Tempo del proyecto: el proyecto toma el BPM del ítem*) ajusta el proyecto al BPM del ítem,
+como un tempo fijo, sin mapa de tempo: el ítem conserva su velocidad y se mueve (menos de
+medio compás) para que su tiempo fuerte caiga sobre una línea de compás. El BPM se calcula
+con todos los pulsos juntos (en un loop, con su duración, que es un número entero de
+pulsos) y se redondea cuando queda a menos de 0,02 de un número entero. Si el proyecto
+tiene marcadores de tempo en la zona del ítem, reawarp pregunta antes de eliminarlos; si el
+tempo del ítem varía, el resultado lo avisa (una canción con tempo variable se sigue mejor
+con *Mapa de tempo* o *Warp*).
+
 Para que una canción con mapa de tempo suene más rápida o más lenta, use **Cambiar el
 tempo de la canción**: el BPM del proyecto en REAPER solo cambia el tempo hasta el
 siguiente marcador de tempo (aquí hay uno por pulso), así que esta acción pide un nuevo BPM
 medio y escala todos los marcadores de la canción por el mismo factor, manteniendo cada uno
 en su compás y su pulso. Con un ítem seleccionado cambia la zona de ese ítem; sin ninguno,
-todo el proyecto. El ítem acompaña el cambio y conserva la afinación.
+todo el proyecto. El ítem acompaña el cambio y conserva la afinación. Los demás ítems de esa
+zona que recibieron el warp de reawarp (un loop, por ejemplo) reciben el warp de nuevo hacia
+el nuevo tempo, y el inicio de un loop conserva su ataque.
 
 Cada acción es un único paso de deshacer (Ctrl+Z).
 
@@ -242,7 +313,8 @@ Cada acción es un único paso de deshacer (Ctrl+Z).
 | BPM aproximado | 0 | Si es > 0, busca cerca de este valor (corrige el tempo a la mitad o al doble) |
 | Compás | auto | `auto` detecta 3/4 o 4/4; o escriba `3/4`, `6/8`, `5/4`... |
 | Flexibilidad de tempo | 50 | 0 = tempo rígido (electrónica); 100 = muy libre (en vivo, rubato) |
-| Un stretch marker cada N pulsos | 1 | Use 4 (uno por compás) para tener menos artefactos |
+| Un stretch marker cada N pulsos | 1 | Use 4 (uno por compás) para tener menos artefactos. 0 = automático: marcadores solo donde el tempo cambia (entre dos marcadores el audio se estira por igual; un pulso solo recibe un marcador cuando, sin él, algún pulso quedaría más lejos de la cuadrícula que la tolerancia). Una canción de tempo estable recibe pocos marcadores, una con rubato muchos. También vale para los marcadores del *Mapa de tempo* |
+| Marcadores automáticos: tolerancia en ms | 10 | Con N = 0: cuánto (en ms) puede quedar un pulso fuera de la cuadrícula antes de recibir un marcador |
 | Suavizar cuadrícula | 0 | -1 = ajusta un tempo constante; N = suaviza en ±N pulsos |
 | Ajustar a transitorios | 1 | Mueve cada pulso al inicio del ataque más cercano (±30 ms) |
 | Ajuste fino | 0 | Con Beat This!, 1 pone cada pulso en su primer ataque (hasta 12 ms) en lugar de solo corregir el desplazamiento medio; pruébelo cuando algunos pulsos suenen un poco tarde en pasajes densos |

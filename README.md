@@ -17,14 +17,19 @@ of a song (including songs whose tempo drifts or changes) and then
   reference item, without touching the project tempo.
 
 Wrong beats can be fixed from the keyboard: move to the next or previous beat marker (OSARA
-announces bar, beat and BPM), and move, add or delete a marker; the warp, tempo map or
-groove match is applied again by itself.
+announces bar, beat and BPM; without OSARA they are shown in a note near the mouse), and
+move, add or delete a marker; the warp, tempo map or groove match is applied again by itself.
+
+Several items can be processed together, for example a song and a loop in a remix, or the
+tracks of a multitrack recording; see [Several items at once](#several-items-at-once).
 
 Written in Lua; beats are detected by the neural detector
 [Beat This!](https://github.com/CPJKU/beat_this), installed with one click (no Python
 installation needed). The whole interface uses REAPER's native menus and dialogs, so it works with
-screen readers (OSARA). Messages are in English, Portuguese or Spanish, as set in the
-*Language* setting.
+screen readers (OSARA). Without OSARA everything is visual too: results appear in a dialog,
+a running action shows its progress in a tooltip near the mouse, and moving between beat
+markers shows the marker in a note near the mouse that goes away by itself. Messages are in
+English, Portuguese or Spanish, as set in the *Language* setting.
 
 ## Installation
 
@@ -63,7 +68,9 @@ environment in a few seconds and reuses what is already downloaded.
 REAPER keeps responding while an action works: Beat This! runs in the background and the
 analysis gives REAPER its window back many times a second, so you can keep moving around
 the project (do not edit the item being analyzed). The result is announced through OSARA;
-without OSARA it is shown in a window. Dialogs only appear when reawarp needs an answer
+without OSARA it is shown in a window (moving between beat markers shows the marker in a
+note near the mouse instead, since a window after every key press would get in the way).
+Dialogs only appear when reawarp needs an answer
 (time signature, removing a tempo map, a new BPM) and for the settings. Running the same
 action again while it works cancels it (Undo reverts what it had already changed); starting
 another reawarp action meanwhile only announces that it is still working. When an action starts,
@@ -76,15 +83,17 @@ dialog, since it explains what to check next.
 | `reawarp - Analyze beats.lua` | Analyzes and creates beat markers (shows a report) |
 | `reawarp - Warp item to project tempo.lua` | Item follows the project tempo |
 | `reawarp - Tempo map from item.lua` | Project follows the item's tempo |
+| `reawarp - Fixed project tempo from item.lua` | The project takes the item's BPM, as one fixed tempo (no tempo map) |
 | `reawarp - Match groove to first item.lua` | Warps selected items to follow the first selected item's beats |
 | `reawarp - Change song tempo.lua` | Changes the tempo of a song that has a tempo map |
 | `reawarp - Double BPM.lua` | Doubles the BPM: of the project after a tempo map, of the song after a warp |
 | `reawarp - Halve BPM.lua` | Halves the BPM: of the project after a tempo map, of the song after a warp |
-| `reawarp - Next beat marker.lua` | Moves the edit cursor to the next beat marker and announces it via OSARA |
-| `reawarp - Previous beat marker.lua` | Moves the edit cursor to the previous beat marker and announces it via OSARA |
+| `reawarp - Next beat marker.lua` | Moves the edit cursor to the next beat marker and announces it via OSARA (without OSARA, in a note near the mouse) |
+| `reawarp - Previous beat marker.lua` | Moves the edit cursor to the previous beat marker and announces it via OSARA (without OSARA, in a note near the mouse) |
 | `reawarp - Move nearest beat marker to edit cursor.lua` | Moves the nearest beat marker to the edit cursor and updates the tempo map/warp |
 | `reawarp - Add beat marker at edit cursor.lua` | Inserts a beat marker at the edit cursor and updates the tempo map/warp |
 | `reawarp - Delete nearest beat marker.lua` | Deletes the nearest beat marker and updates the tempo map/warp |
+| `reawarp - Shift beats by half a beat.lua` | Shifts by half a beat the beats before the edit cursor (or in the time selection), where the detector marked the off-beats, and updates the tempo map/warp |
 | `reawarp - Set downbeat at edit cursor.lua` | Makes the beat nearest the edit cursor beat 1 |
 | `reawarp - Restore original items.lua` | Returns items to their state before reawarp |
 | `reawarp - Settings.lua` | Settings |
@@ -111,7 +120,7 @@ repairs it.
   `backend/install_beat_this.bat` (Windows) or `backend/install_beat_this.sh` (macOS /
   Linux). It downloads about 350 MB and uses about 800 MB of disk, all inside `backend/`
   (`uv`, `python`, `env` and `models`). To uninstall, choose *Uninstall the Beat This! detector* in the
-  reawarp menu (it appears once Beat This! is installed): it deletes those four folders and
+  reawarp menu (once Beat This! is installed, it takes the place of *Install the Beat This! detector*): it deletes those four folders and
   frees about 0.8 GB (3 GB for the GPU version); reawarp itself stays installed.
   The installer window closes by itself at the end, and reawarp shows the result in a
   dialog; if it fails, the dialog shows the end of the report and offers to copy the
@@ -161,6 +170,14 @@ default, on the project (*Project settings*).
      tempo map or groove match, it is applied again by itself. You can also move or
      delete the `RW` markers by hand. The markers are the grid the warp uses; reawarp
      does not recreate them if they exist.
+   - **Part of the song on the off-beats** → in an intro with only a voice, or a break,
+     the detector may mark the off-beats; where the band comes in, it goes back to the
+     beats, and there the gap between two beat markers is 1.5 beats (or 0.5). Place the
+     edit cursor there (up to 3 beats away is fine) and run *Shift beats by half a beat*: the beats before the cursor
+     move half a beat, and the warp, tempo map or groove match is applied again. For a
+     stretch in the middle of the song, select it with a time selection first. The
+     direction is the one that turns the jump into a whole beat; if there is no such jump
+     at the edges, nothing is changed.
 3. Run **Warp** or **Tempo map**.
    - *Warp*: the song's downbeat goes to the bar line nearest to where it already is, and
      every beat (or every N beats) gets a stretch marker on the grid. The song then plays
@@ -178,7 +195,8 @@ default, on the project (*Project settings*).
      restore the previous one after it) so that the bars match. The item keeps its time
      stretch and stretch marker modes and, by default, switches to the "beats (position,
      length, rate)" timebase so it stays in sync if the project tempo changes later.
-     With several items selected, each one is warped by its own beats. When the item
+     With several items selected, each one is warped by its own beats (see
+     [Several items at once](#several-items-at-once)). When the item
      starts right on its first beat (a loop), its first few milliseconds play at their own
      speed, because REAPER's stretching smears an attack at the very start of an item;
      the stretch begins just after that attack.
@@ -191,7 +209,8 @@ default, on the project (*Project settings*).
      changes like a warped item ("beats (position, length, rate)" timebase), or keeps its
      own timebase if *Item follows tempo changes* is 0. Existing tempo markers in the
      item's range are replaced. With several items selected, the first one (in track
-     order) makes the tempo map and the others are warped to it, as with *Warp*.
+     order) makes the tempo map and the others are warped to it, as with *Warp* (see
+     [Several items at once](#several-items-at-once)).
    - *Groove Match*: select the reference item (for example a song or drums) and the
      items that should follow it (for example a loop). The reference is the first selected
      item in track order, so put it on the upper track. Each of the other items gets
@@ -201,16 +220,61 @@ default, on the project (*Project settings*).
      reference, not bar to bar, so place the item near the beat where it should start.
      *Double BPM* and *Halve BPM* also work on matched items.
 
+### Several items at once
+
+Select the items and run the action. They are taken in track order: the item on the upper
+track (the first track in the project, when they are on different tracks) is the
+**reference**, as in *Groove Match* and in *Sync other items* (below). MIDI items are ignored.
+
+- **Warp**: there is no reference item, the reference is the project tempo. Each item is
+  analyzed and warped by its own beats onto the project grid, so a song and a loop recorded
+  at different tempos both end up at the project BPM, in time with each other.
+- **Tempo map**: the reference item makes the tempo map, and every other selected item is
+  warped onto that map, so it takes the tempo of the reference, with its accelerations and
+  slowdowns. Example: in a remix, put the song on the upper track and a loop (drums, a
+  bass line) on a track below, place the loop near the bar where it should start, select
+  both and run *Tempo map*: the project tempo follows the song, and the loop follows it
+  bar by bar.
+- **Groove Match**: the reference item and the project tempo are not changed; the other
+  items follow the beats of the reference.
+- **Fixed project tempo from item** uses only the first selected item.
+
+**Song and loop: Tempo map or Groove Match?** In both, the loop ends up following the song's
+tempo, beat by beat. The difference is the project grid:
+
+- With *Tempo map*, the project tempo (metronome, grid, MIDI, new recordings) follows the
+  song too, so anything added later is in time with the song and the loop. This is the
+  usual choice for a remix or for adding instruments to a recording.
+- With *Groove Match*, only the loop follows the song; the project tempo stays as it was.
+  Use it when the project already has a tempo that must not change (for example other
+  songs in the same project), and the loop just has to lock to the song.
+- With *Warp* (selecting both), it is the other way round: the song is stretched to the
+  fixed project tempo, and the loop too.
+
+With *Stretch marker every N beats* set to 0 (automatic), each item gets markers only
+where its tempo moves away from the reference (the project grid, or the tempo map made by
+the reference item), within the *Auto markers* tolerance.
+
 Multitrack recordings: with *Sync other items* set to 1 in the settings, a warp or tempo
 map applied to one item (for example the drums) is applied in the same way to the items
 grouped with it (select them and press Ctrl+G, *Group items*), so the whole band stays together; 2 includes every
 unlocked item that overlaps it. By default (0) only the selected items are changed.
 
+For a loop, or a song with a steady tempo, **Fixed project tempo from item** sets the project to
+the item's BPM as one fixed tempo, without a tempo map: the item keeps its own speed and is
+moved (by less than half a bar) so its downbeat falls on a bar line. The BPM comes from all
+the beats together (for a loop, from its length, which is a whole number of beats), and it
+is rounded when it is within 0.02 of a whole number. If the project has tempo markers where
+the item is, reawarp asks before removing them; if the item's tempo varies, the result
+says so (a song with a varying tempo is better followed by *Tempo map* or *Warp*).
+
 To make a song with a tempo map faster or slower, use **Change song tempo**: REAPER's
 project BPM only changes the tempo up to the next tempo marker (one per beat here), so this
 action asks for a new average BPM and scales every marker of the song by the same factor,
 keeping each on its bar and beat. With an item selected it changes that item's range;
-with none, the whole project. The item follows with its pitch preserved.
+with none, the whole project. The item follows with its pitch preserved. Other items in that
+range that reawarp warped (a loop, for example) are warped again onto the new tempo, so the
+start of a loop keeps its attack.
 
 Each action is a single undo step (Ctrl+Z).
 
@@ -222,7 +286,8 @@ Each action is a single undo step (Ctrl+Z).
 | Approximate BPM | 0 | If > 0, searches near this value (fixes half/double tempo) |
 | Time signature | auto | `auto` detects 3/4 or 4/4; or type `3/4`, `6/8`, `5/4`... |
 | Tempo flexibility | 50 | 0 = rigid tempo (electronic); 100 = very loose (live, rubato) |
-| Stretch marker every N beats | 1 | Use 4 (one per bar) for fewer artifacts |
+| Stretch marker every N beats | 1 | Use 4 (one per bar) for fewer artifacts. 0 = automatic: markers only where the tempo changes (between two markers the audio is stretched evenly; a beat gets a marker only when, without it, a beat would be more than the tolerance away from the grid). A steady song gets few markers, a rubato one many. Also used for the tempo markers of *Tempo map* |
+| Auto markers: tolerance in ms | 10 | With N = 0: how far (in ms) a beat may land from the grid before it gets a marker |
 | Smooth grid | 0 | -1 = fit one constant tempo; N = smooth over ±N beats |
 | Snap to transients | 1 | Moves each beat to the start of the nearest attack (±30 ms) |
 | Fine snap | 0 | With Beat This!, 1 puts each beat on its own first attack (within 12 ms) instead of only correcting the average offset; try it when some beats sound a little late in dense passages |
