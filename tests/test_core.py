@@ -311,27 +311,32 @@ def main():
         fails.append('restore with sync=1 did not restore exclusively guide and grouped follower')
 
     # ---------- loop starting on its first beat: no stretch marker inside the attack ----------
-    lua, mock, r, core = setup()
-    src_l = lua.table_from({'sr': SR, 'samples': lua.table_from(y.tolist())})
-    lp = mock.add_item(1.0, src_l, truth[0] - 0.004, 12.0, 'loop')
-    # the beats as the analysis would mark them (the simulator's built-in
-    # detector misses a beat 4 ms into the item)
-    for k in range(20):
-        lp.take.tm[k + 1] = lua.table_from({'src': truth[k], 'name': f'RW {k // 4 + 1}.{k % 4 + 1}', 'col': 0})
-    core.run('warp')
-    sm = [(m.pos, m.src) for m in lua_list(lp.take.sm)]
-    # the head plays at rate 1 (untouched by the stretching) past the attack
-    head_rate = (sm[1][1] - sm[0][1]) / sm[1][0] if len(sm) > 1 else 0
-    inside = [p for p, _ in sm if 1e-3 < p < 0.04] + ([] if abs(head_rate - 1) < 1e-6 else ['head not at rate 1'])
-    # where the first beat (source truth[0]) plays, in project time
-    lo = max(k for k in range(len(sm)) if sm[k][1] <= truth[0])
-    a, b = sm[lo], sm[lo + 1]
-    t1 = lp.D_POSITION + a[0] + (truth[0] - a[1]) * (b[0] - a[0]) / (b[1] - a[1])
-    err = abs(t1 / 0.5 - round(t1 / 0.5)) * 0.5
-    print(f'loop on its first beat: first markers {[round(p, 4) for p, _ in sm[:3]]}, '
-          f'first beat at {t1:.4f}s ({err*1000:.1f} ms from the grid)')
-    if inside or err > 0.01:
-        fails.append('loop: stretch marker inside the first attack, or first beat off the grid')
+    # (every beat, and automatic markers: the beats after the head must stay on the grid too)
+    for every in ('1', '0'):
+        lua, mock, r, core = setup()
+        mock.P.ext['reawarpevery'] = every
+        src_l = lua.table_from({'sr': SR, 'samples': lua.table_from(y.tolist())})
+        lp = mock.add_item(1.0, src_l, truth[0] - 0.004, 24.0, 'loop')
+        # the beats as the analysis would mark them (the simulator's built-in
+        # detector misses a beat 4 ms into the item)
+        for k in range(40):
+            lp.take.tm[k + 1] = lua.table_from({'src': truth[k], 'name': f'RW {k // 4 + 1}.{k % 4 + 1}', 'col': 0})
+        core.run('warp')
+        sm = [(m.pos, m.src) for m in lua_list(lp.take.sm)]
+        # the head plays at rate 1 (untouched by the stretching) past the attack
+        head_rate = (sm[1][1] - sm[0][1]) / sm[1][0] if len(sm) > 1 else 0
+        inside = [p for p, _ in sm if 1e-3 < p < 0.04] + ([] if abs(head_rate - 1) < 1e-6 else ['head not at rate 1'])
+        # where each beat plays, in project time, and how far from the 120 bpm grid
+        errs = []
+        for src_t in truth[:40]:
+            lo = max(k for k in range(len(sm)) if sm[k][1] <= src_t + 1e-9)
+            a, b = sm[lo], sm[min(lo + 1, len(sm) - 1)]
+            tt = lp.D_POSITION + a[0] + (src_t - a[1]) * (b[0] - a[0]) / (b[1] - a[1])
+            errs.append(abs(tt / 0.5 - round(tt / 0.5)) * 0.5)
+        print(f'loop on its first beat (every {every}): first markers {[round(p, 4) for p, _ in sm[:3]]}, '
+              f'{len(sm)} markers, beats up to {max(errs)*1000:.1f} ms from the grid')
+        if inside or max(errs) > 0.002:
+            fails.append(f'loop (every {every}): stretch marker inside the first attack, or beats off the grid')
 
     # ---------- tempo map with two selected items: the second is warped to the new map ----------
     lua, mock, r, core = setup()
@@ -353,6 +358,159 @@ def main():
           f'beats off the grid by up to {max(qerr) if qerr else -1:.3f} beat')
     if n_tm < 10 or len(qerr) < 30 or max(qerr) > 0.02:
         fails.append('tempo map: the second selected item did not follow the new tempo map')
+
+    # ---------- automatic stretch markers (every N = 0): only where the tempo changes ----------
+    # steady 100 bpm for 32 beats, a ritardando to 80 bpm over 16 beats, then steady 80 bpm
+    per = [0.6] * 32 + list(np.linspace(0.6, 0.75, 16)) + [0.75] * 32
+    tb = 0.8 + np.concatenate([[0], np.cumsum(per)])
+    yb = render(tb, noise=0.01, pad=True)
+    for every in ('1', '0'):
+        lua, mock, r, core = setup()
+        mock.P.ext['reawarpevery'] = every
+        src_b = lua.table_from({'sr': SR, 'samples': lua.table_from(yb.tolist())})
+        it_b = mock.add_item(2.0, src_b, 0.0, tb[-1] + 0.5, 'rit')
+        for k in range(len(tb)):
+            it_b.take.tm[k + 1] = lua.table_from({'src': tb[k], 'name': f'RW {k // 4 + 1}.{k % 4 + 1}', 'col': 0})
+        core.run('warp')
+        sm = [(m.pos, m.src) for m in lua_list(it_b.take.sm)]
+        # where every beat plays (project time), and how far from the 120 bpm grid
+        errs = []
+        for src_t in tb:
+            lo = max(k for k in range(len(sm)) if sm[k][1] <= src_t + 1e-9)
+            a, b = sm[lo], sm[min(lo + 1, len(sm) - 1)]
+            tt = it_b.D_POSITION + a[0] + ((src_t - a[1]) * (b[0] - a[0]) / (b[1] - a[1]) if b[1] > a[1] else 0)
+            errs.append(abs(tt / 0.5 - round(tt / 0.5)) * 0.5)
+        print(f'stretch markers every {every}: {len(sm)} markers for {len(tb)} beats, '
+              f'beats up to {max(errs)*1000:.1f} ms from the grid')
+        if every == '0' and (len(sm) > 30 or max(errs) > 0.0125):
+            fails.append('automatic stretch markers: too many markers or a beat off the grid')
+
+    # ---------- tempo map from a ritardando song + a steady loop, automatic markers ----------
+    # the loop is warped onto the varying tempo map: its beats must follow the map
+    lua, mock, r, core = setup()
+    mock.P.ext['reawarpevery'] = '0'
+    src_s = lua.table_from({'sr': SR, 'samples': lua.table_from(yb.tolist())})
+    src_l = lua.table_from({'sr': SR, 'samples': lua.table_from(y.tolist())})
+    song = mock.add_item(2.0, src_s, 0.0, tb[-1] + 0.5, 'rit')
+    loop = mock.add_item(2.0, src_l, truth[0] - 0.004, 36.0, 'loop')
+    for k in range(len(tb)):
+        song.take.tm[k + 1] = lua.table_from({'src': tb[k], 'name': f'RW {k // 4 + 1}.{k % 4 + 1}', 'col': 0})
+    for k in range(60):
+        loop.take.tm[k + 1] = lua.table_from({'src': truth[k], 'name': f'RW {k // 4 + 1}.{k % 4 + 1}', 'col': 0})
+    core.run('tempo')
+
+    def loop_check(label):
+        sm = [(m.pos, m.src) for m in lua_list(loop.take.sm)]
+        devs = []
+        for src_t in truth[:60]:
+            if src_t > sm[-1][1]:
+                break
+            lo = max(k for k in range(len(sm)) if sm[k][1] <= src_t + 1e-9)
+            a, b = sm[lo], sm[min(lo + 1, len(sm) - 1)]
+            tt = loop.D_POSITION + a[0] + ((src_t - a[1]) * (b[0] - a[0]) / (b[1] - a[1]) if b[1] > a[1] else 0)
+            q = r.TimeMap2_timeToQN(0, tt)
+            qlen = r.TimeMap2_QNToTime(0, round(q) + 1) - r.TimeMap2_QNToTime(0, round(q))
+            devs.append(abs(q - round(q)) * qlen)
+        head_rate = (sm[1][1] - sm[0][1]) / sm[1][0]
+        print(f'loop {label}: {len(sm)} markers, head rate {head_rate:.3f}, '
+              f'beats up to {max(devs)*1000:.1f} ms from the grid ({len(devs)} beats)')
+        if max(devs) > 0.0125 or abs(head_rate - 1) > 1e-6:
+            fails.append(f'loop {label}: beats off the grid, or its attack stretched')
+
+    loop_check('on a ritardando tempo map (auto markers)')
+    # then "Change song tempo" on the song: the loop is warped again onto the new map
+    mock.P.sel = lua.table_from([song])
+    r.GetUserInputs = lua.eval('function() return true, "110" end')
+    core.run('retempo')
+    loop_check('after changing the song tempo')
+
+    # ---------- shift beats by half a beat (the detector marked the off-beats) ----------
+    def src_to_proj(item, src_t):
+        sm = [(m.pos, m.src) for m in lua_list(item.take.sm)]
+        lo = max(k for k in range(len(sm)) if sm[k][1] <= src_t + 1e-9)
+        a, b = sm[lo], sm[min(lo + 1, len(sm) - 1)]
+        return item.D_POSITION + a[0] + ((src_t - a[1]) * (b[0] - a[0]) / (b[1] - a[1]) if b[1] > a[1] else 0)
+
+    # case 1: an intro marked on the off-beats (half a beat early: a jump of 1.5 beat at beat 17)
+    # case 2: beats 25..36 marked on the off-beats (half a beat late), fixed with a time selection
+    # case 3: beats 25..35 on the off-beats and the beat after them missing (a jump of 1.5
+    # beat at both edges), as Beat This! did in a song: the missing beat must be put back
+    for case in ('intro', 'intro, cursor a beat late', 'intro, cursor two beats early', 'selection',
+                 'selection, a beat missing'):
+        lua, mock, r, core = setup()
+        src_x = lua.table_from({'sr': SR, 'samples': lua.table_from(y.tolist())})
+        sh = mock.add_item(1.0, src_x, 0.0, 38.0, 'song')
+        marks = list(truth[:60])
+        if case.startswith('intro'):
+            for k in range(16):
+                marks[k] = truth[k] - 0.3
+            marks = marks[1:]      # the first off-beat would be before the item
+        else:
+            for k in range(24, 36):
+                marks[k] = truth[k] + 0.3
+            if case.endswith('missing'):
+                del marks[35]
+        for k, src_t in enumerate(marks):
+            sh.take.tm[k + 1] = lua.table_from({'src': src_t, 'name': f'RW {k // 4 + 1}.{k % 4 + 1}', 'col': 0})
+        core.run('warp')
+        if case.startswith('intro'):
+            # where the beats become right (or near it)
+            at = {'intro': truth[16] - 0.05, 'intro, cursor a beat late': truth[16] + 0.1,
+                  'intro, cursor two beats early': truth[14] - 0.1}[case]
+            mock.P.cursor = src_to_proj(sh, at)
+        else:
+            mock.P.ts0, mock.P.ts1 = src_to_proj(sh, truth[24] + 0.15), src_to_proj(sh, truth[35] + 0.45)
+        core.run('shift')
+        print('  msg:', lua_list(mock.P.messages)[-1])
+        offs_ms = []
+        for src_t in truth[1:60]:
+            if src_t < 38.0:
+                tt = src_to_proj(sh, src_t)
+                offs_ms.append(abs(tt / 0.5 - round(tt / 0.5)) * 500)
+        print(f'shift half a beat ({case}): beats up to {max(offs_ms):.1f} ms from the grid')
+        if max(offs_ms) > 3:
+            fails.append(f'shift half a beat ({case}): beats still off the grid')
+        nb = round((src_to_proj(sh, truth[48]) - src_to_proj(sh, truth[8])) / 0.5)
+        if nb != 40:
+            fails.append(f'shift half a beat ({case}): {nb} beats between beats 8 and 48, not 40')
+        if case.endswith('missing') and round(src_to_proj(sh, truth[48]) / 2.0, 3) % 1 != 0:
+            fails.append(f'shift half a beat ({case}): the bars after the stretch moved')
+
+    # no jump at the edges: nothing changes
+    lua, mock, r, core = setup()
+    src_x = lua.table_from({'sr': SR, 'samples': lua.table_from(y.tolist())})
+    sh = mock.add_item(1.0, src_x, 0.0, 38.0, 'song')
+    for k in range(60):
+        sh.take.tm[k + 1] = lua.table_from({'src': truth[k], 'name': f'RW {k // 4 + 1}.{k % 4 + 1}', 'col': 0})
+    core.run('warp')
+    before = [m.src for m in lua_list(sh.take.tm)]
+    mock.P.cursor = src_to_proj(sh, truth[16]) - 0.05
+    core.run('shift')
+    if [m.src for m in lua_list(sh.take.tm)] != before:
+        fails.append('shift half a beat: changed beats that had no jump')
+    print('  no jump:', lua_list(mock.P.messages)[-1])
+
+    # ---------- project tempo from item (fixed tempo, no tempo map) ----------
+    for with_map in (False, True):
+        lua, mock, r, core = setup()
+        src_l = lua.table_from({'sr': SR, 'samples': lua.table_from(y.tolist())})
+        # a 100 bpm loop of 4 bars (16 beats), starting 4 ms before its first beat
+        lp = mock.add_item(1.3, src_l, truth[0] - 0.004, 16 * 0.6, 'loop')
+        for k in range(16):
+            lp.take.tm[k + 1] = lua.table_from({'src': truth[k], 'name': f'RW {k // 4 + 1}.{k % 4 + 1}', 'col': 0})
+        if with_map:
+            for tp, b in ((0.0, 120), (3.0, 110), (5.0, 130)):
+                r.SetTempoTimeSigMarker(0, -1, tp, -1, -1, b, 4, 4, False)
+        core.run('bpm')
+        bpm_now = r.TimeMap_GetTimeSigAtTime(0, lp.D_POSITION + 1)[2]
+        beat_pos, bar = r.TimeMap2_timeToBeats(0, lp.D_POSITION + 0.004)[0:2]
+        off = min(beat_pos, 4 - beat_pos) * 60 / bpm_now
+        n_tm = len(lua_list(mock.P.tempo))
+        print(f'project tempo from item (tempo map before: {with_map}): {bpm_now:.3f} BPM, '
+              f'{n_tm} tempo markers, downbeat {off*1000:.1f} ms from bar {bar + 1}, '
+              f'stretch markers {len(lua_list(lp.take.sm))}, rate {lp.take.D_PLAYRATE}')
+        if abs(bpm_now - 100) > 0.01 or off > 0.002 or len(lua_list(lp.take.sm)) or n_tm > 1:
+            fails.append(f'project tempo from item (tempo map before: {with_map}) is wrong')
 
     # ---------- change song tempo: other items follow only per "Sync other items" ----------
     for sync, want in ((0, 0), (2, 1)):

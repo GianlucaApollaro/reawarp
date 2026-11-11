@@ -28,6 +28,7 @@ function M.new(opts)
   function r.UpdateItemInProject() end
   function r.GetCursorPosition() return P.cursor end
   function r.SetEditCurPos(t) P.cursor = t end
+  function r.GetSet_LoopTimeRange() return P.ts0 or 0, P.ts1 or 0 end
 
   function r.CountMediaItems() return #P.items end
   function r.GetMediaItem(_, i) return P.items[i + 1] end
@@ -193,6 +194,21 @@ function M.new(opts)
   function r.GetTempoTimeSigMarker(_, i) local m = P.tempo[i + 1]; return true, m.t, 0, 0, m.bpm, m.num or 0, m.den or 0, false end
   function r.DeleteTempoTimeSigMarker(_, i) table.remove(P.tempo, i + 1); return true end
   function r.SetTempoTimeSigMarker(_, idx, t, _, _, b, num, den)
+    if t < 0 and idx >= 0 then
+      -- time -1: the marker keeps its beat position (as in REAPER); the
+      -- markers' times are recomputed from their beat positions
+      local qs = {}
+      for k, m in ipairs(P.tempo) do qs[k] = qn_at(m.t) end
+      local m = P.tempo[idx + 1]
+      m.bpm = b
+      if num and num > 0 then m.num, m.den = num, den end
+      local pt, pq, pb = 0, 0, bpm
+      for k, mk in ipairs(P.tempo) do
+        mk.t = pt + (qs[k] - pq) * 60 / pb
+        pt, pq, pb = mk.t, qs[k], mk.bpm
+      end
+      return true
+    end
     local mk = { t = t, bpm = b, num = num, den = den }
     if idx >= 0 then P.tempo[idx + 1] = mk else P.tempo[#P.tempo + 1] = mk end
     table.sort(P.tempo, function(x, y) return x.t < y.t end)
