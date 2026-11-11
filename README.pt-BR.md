@@ -2,9 +2,8 @@
 
 *[Read in English](README.md) · [Leer en español](README.es.md)*
 
-> O reawarp ainda é uma versão experimental: foi testado com várias músicas reais, mas
-> ainda pode errar em algumas. Contribuições, relatos de problemas e sugestões são
-> muito bem-vindos; veja [Como contribuir](#como-contribuir).
+> Contribuições, relatos de problemas e sugestões são muito bem-vindos; veja
+> [Como contribuir](#como-contribuir).
 >
 > Contato: gabrielschuck.tecladista@gmail.com
 
@@ -413,7 +412,8 @@ cabeçalho do arquivo) e é enviado à instância aberta com `reaper.exe -nonewi
 
 ## Como contribuir
 
-O reawarp está em desenvolvimento e contribuições são bem-vindas:
+O reawarp para REAPER pretende ser um warp tão bom quanto parece. Se ele está ajudando de
+alguma forma no seu projeto, considere contribuir:
 
 - **Problemas e sugestões**: abra uma
   [issue](https://github.com/gabrielschuck/reawarp/issues) (em português ou inglês). Se uma

@@ -1,12 +1,22 @@
--- @description reawarp: audio warping (beat detection, warp, tempo map)
--- @version 0.1.4
+-- @description reawarp: audio warping (beat detection, warp, tempo map, groove match, quantize)
+-- @version 1.0.0
 -- @author Gabriel Schuck
 -- @license GPL-3.0-or-later
 -- @links
 --   GitHub https://github.com/gabrielschuck/reawarp
 -- @changelog
---   Spanish translation (by vrivrixd): chosen automatically when REAPER or the system
---   is in Spanish, or by typing es in the Language setting. README in Spanish.
+--   Groove Match, beat marker editing from the keyboard, multitrack sync and
+--   multichannel analysis (by GianlucaApollaro).
+--   Quantize to a MIDI item: the notes of a MIDI item give the rhythm (straight,
+--   swing, tarantella...); Quantize settings with safe defaults.
+--   New actions: Fixed project tempo from item; Shift beats by half a beat.
+--   Stretch marker every N beats = 0: automatic markers only where the tempo changes.
+--   Tempo map with several items warps the others onto it; a loop keeps its attack.
+--   Change song tempo re-warps the warped items in its range.
+--   Sync other items: 2 = all audio items, 3 = all items including MIDI.
+--   Without OSARA: progress tooltip, beat markers shown near the mouse.
+--   Fine snap setting; analysis fixes (drum stems at half tempo, downbeats on
+--   off-beats, missing beats near jumps).
 
 -- reawarp
 -- Audio warping for REAPER: detects the beats of a song (including songs with a

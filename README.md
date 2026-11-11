@@ -2,9 +2,8 @@
 
 *[Leia em português](README.pt-BR.md) · [Leer en español](README.es.md)*
 
-> reawarp is still an experimental version: it has been tested on a
-> number of real songs, but it may still get some of them wrong. Contributions, bug reports and suggestions
-> are very welcome; see [Contributing](#contributing).
+> Contributions, bug reports and suggestions are very welcome; see
+> [Contributing](#contributing).
 >
 > Contact: gabrielschuck.tecladista@gmail.com
 
@@ -396,7 +395,8 @@ file header) and is sent to the running instance with `reaper.exe -nonewinst scr
 
 ## Contributing
 
-reawarp is a work in progress and contributions are welcome:
+reawarp for REAPER aims to be a warp as good as it seems. If it is helping your project in
+any way, please consider contributing:
 
 - **Bug reports and suggestions**: open an
   [issue](https://github.com/gabrielschuck/reawarp/issues). For a song that is detected

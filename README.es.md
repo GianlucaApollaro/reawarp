@@ -2,9 +2,8 @@
 
 *[Read in English](README.md) · [Leia em português](README.pt-BR.md)*
 
-> reawarp todavía es una versión experimental: se probó con muchas canciones reales, pero
-> todavía puede fallar con algunas. Las contribuciones, los reportes de errores y las
-> sugerencias son muy bienvenidos; vea [Cómo contribuir](#cómo-contribuir).
+> Las contribuciones, los reportes de errores y las sugerencias son muy bienvenidos; vea
+> [Cómo contribuir](#cómo-contribuir).
 >
 > Contacto: gabrielschuck.tecladista@gmail.com
 
@@ -429,7 +428,8 @@ quedan los pulsos. Lo llama un script corto que define `RW_MAIN`, `RW_OUT`, `RW_
 
 ## Cómo contribuir
 
-reawarp está en desarrollo y las contribuciones son bienvenidas:
+reawarp para REAPER pretende ser un warp tan bueno como parece. Si le está ayudando de
+alguna forma en su proyecto, considere contribuir:
 
 - **Reportes de errores y sugerencias**: abra un
   [issue](https://github.com/gabrielschuck/reawarp/issues). Para una canción que se detecta
