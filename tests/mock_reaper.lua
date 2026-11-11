@@ -29,6 +29,7 @@ function M.new(opts)
   function r.GetCursorPosition() return P.cursor end
   function r.SetEditCurPos(t) P.cursor = t end
   function r.GetSet_LoopTimeRange() return P.ts0 or 0, P.ts1 or 0 end
+  function r.GetSetProjectGrid() return 0, P.grid or 0.0625, 0, 0 end
 
   function r.CountMediaItems() return #P.items end
   function r.GetMediaItem(_, i) return P.items[i + 1] end

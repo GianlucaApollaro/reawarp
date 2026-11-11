@@ -97,7 +97,9 @@ Las acciones tienen nombre en inglés en la lista de acciones:
 | `reawarp - Halve BPM.lua` | Reduce el BPM a la mitad: del proyecto después de un mapa de tempo, de la canción después de un warp |
 | `reawarp - Next beat marker.lua` | Mueve el cursor de edición al siguiente marcador de pulso y lo anuncia por OSARA (sin OSARA, en una nota junto al ratón) |
 | `reawarp - Previous beat marker.lua` | Mueve el cursor de edición al marcador de pulso anterior y lo anuncia por OSARA (sin OSARA, en una nota junto al ratón) |
-| `reawarp - Move nearest beat marker to edit cursor.lua` | Mueve el marcador de pulso más cercano al cursor y actualiza el mapa de tempo/warp |
+| `reawarp - Move nearest beat marker to edit cursor.lua` | Mueve el marcador de pulso más cercano al cursor (con una selección de tiempo, todos los marcadores de ella la misma distancia) y actualiza el mapa de tempo/warp |
+| `reawarp - Move beat markers left by grid.lua` | Mueve los marcadores de pulso de la selección de tiempo (o, sin ella, el más cercano) a la izquierda, una división de la cuadrícula del proyecto |
+| `reawarp - Move beat markers right by grid.lua` | Mueve los marcadores de pulso de la selección de tiempo (o, sin ella, el más cercano) a la derecha, una división de la cuadrícula del proyecto |
 | `reawarp - Add beat marker at edit cursor.lua` | Añade un marcador de pulso en el cursor de edición y actualiza el mapa de tempo/warp |
 | `reawarp - Delete nearest beat marker.lua` | Elimina el marcador de pulso más cercano y actualiza el mapa de tempo/warp |
 | `reawarp - Shift beats by half a beat.lua` | Desplaza medio pulso los pulsos antes del cursor de edición (o en la selección de tiempo), donde el detector marcó los contratiempos, y actualiza el mapa de tempo/warp |
@@ -188,6 +190,14 @@ usa el predeterminado, en el proyecto (*Project settings*).
      ítem ya tiene warp, mapa de tempo o groove match, se vuelve a aplicar solo. También
      puede mover o borrar a mano los marcadores `RW`. Los marcadores son la cuadrícula
      que usa el warp; reawarp no los vuelve a crear si ya existen.
+   - **Un tramo de pulsos adelantado o atrasado la misma distancia** → selecciónelo con una
+     selección de tiempo y ejecute *Mover marcadores de pulso a la izquierda / derecha
+     según la cuadrícula* (una división de la cuadrícula del proyecto, por ejemplo 1/32,
+     cada vez), o *Mover el marcador de pulso más cercano al cursor de edición*: todos los
+     marcadores de la selección se mueven la misma distancia, conservando los intervalos
+     entre ellos (de Gianluca Apollaro). Para un tramo en el contratiempo (medio pulso
+     fuera), use *Desplazar pulsos medio pulso*, más abajo, que además repone un pulso que
+     falte en el borde.
    - **Parte de la canción en el contratiempo** → en una introducción solo con voz, o en un
      corte, el detector puede marcar los contratiempos; donde entra la banda, vuelve a los
      pulsos, y ahí el intervalo entre dos marcadores de pulso es de 1,5 pulsos (o 0,5).

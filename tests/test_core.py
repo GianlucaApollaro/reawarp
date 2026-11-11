@@ -562,6 +562,18 @@ def main():
     n_tm_deleted = len(lua_list(it_t.take.tm))
     if n_tm_added != n_tm_before + 1 or n_tm_deleted != n_tm_before:
         fails.append(f'add_beat/del_beat marker count mismatch: {n_tm_before} -> {n_tm_added} -> {n_tm_deleted}')
+    # markers in the time selection moved by one grid division and back (from PR #4)
+    mock.P.ts0, mock.P.ts1 = target_t - 0.05, target_t + 2.0
+    src_before = [m.src for m in lua_list(it_t.take.tm)]
+    core.run('nudge_right')
+    print('  nudge msg:', lua_list(mock.P.messages)[-1])
+    src_right = [m.src for m in lua_list(it_t.take.tm)]
+    core.run('nudge_left')
+    src_back = [m.src for m in lua_list(it_t.take.tm)]
+    moved = [b - a for a, b in zip(src_before, src_right) if b > a + 1e-4]
+    if len(moved) < 3 or max(moved) - min(moved) > 1e-6 or max(abs(a - b) for a, b in zip(src_before, src_back)) > 1e-5:
+        fails.append(f'nudge_right/nudge_left failed: moved {len(moved)} markers')
+    mock.P.ts0, mock.P.ts1 = 0, 0
 
     # ---------- quantize to a MIDI item ----------
     # hits played off the grid (up to 30 ms early or late); the MIDI item on the

@@ -91,7 +91,9 @@ dialog, since it explains what to check next.
 | `reawarp - Halve BPM.lua` | Halves the BPM: of the project after a tempo map, of the song after a warp |
 | `reawarp - Next beat marker.lua` | Moves the edit cursor to the next beat marker and announces it via OSARA (without OSARA, in a note near the mouse) |
 | `reawarp - Previous beat marker.lua` | Moves the edit cursor to the previous beat marker and announces it via OSARA (without OSARA, in a note near the mouse) |
-| `reawarp - Move nearest beat marker to edit cursor.lua` | Moves the nearest beat marker to the edit cursor and updates the tempo map/warp |
+| `reawarp - Move nearest beat marker to edit cursor.lua` | Moves the nearest beat marker to the edit cursor (with a time selection, all the markers in it by the same amount) and updates the tempo map/warp |
+| `reawarp - Move beat markers left by grid.lua` | Moves the beat markers in the time selection (or else the nearest one) left by one division of the project grid |
+| `reawarp - Move beat markers right by grid.lua` | Moves the beat markers in the time selection (or else the nearest one) right by one division of the project grid |
 | `reawarp - Add beat marker at edit cursor.lua` | Inserts a beat marker at the edit cursor and updates the tempo map/warp |
 | `reawarp - Delete nearest beat marker.lua` | Deletes the nearest beat marker and updates the tempo map/warp |
 | `reawarp - Shift beats by half a beat.lua` | Shifts by half a beat the beats before the edit cursor (or in the time selection), where the detector marked the off-beats, and updates the tempo map/warp |
@@ -173,6 +175,13 @@ default, on the project (*Project settings*).
      tempo map or groove match, it is applied again by itself. You can also move or
      delete the `RW` markers by hand. The markers are the grid the warp uses; reawarp
      does not recreate them if they exist.
+   - **A stretch of beats early or late by the same amount** → select it with a time
+     selection and run *Move beat markers left by grid* / *right by grid* (one division
+     of the project grid, for example 1/32, each time), or *Move nearest beat marker to
+     edit cursor*: every marker in the selection moves by the same amount, keeping the
+     intervals between them (by Gianluca Apollaro). For a stretch on the off-beats (half
+     a beat off) use *Shift beats by half a beat* below instead, which also puts back a
+     beat missing at the edge.
    - **Part of the song on the off-beats** → in an intro with only a voice, or a break,
      the detector may mark the off-beats; where the band comes in, it goes back to the
      beats, and there the gap between two beat markers is 1.5 beats (or 0.5). Place the

@@ -94,7 +94,9 @@ numa janela, porque explica o que conferir em seguida.
 | `reawarp - Halve BPM.lua` | Reduz o BPM à metade: do projeto depois de um mapa de tempo, da música depois de um warp |
 | `reawarp - Next beat marker.lua` | Move o cursor de edição para o próximo marcador de batida e o anuncia pelo OSARA (sem o OSARA, numa nota perto do mouse) |
 | `reawarp - Previous beat marker.lua` | Move o cursor de edição para o marcador de batida anterior e o anuncia pelo OSARA (sem o OSARA, numa nota perto do mouse) |
-| `reawarp - Move nearest beat marker to edit cursor.lua` | Move o marcador de batida mais próximo para o cursor e atualiza o mapa de tempo/warp |
+| `reawarp - Move nearest beat marker to edit cursor.lua` | Move o marcador de batida mais próximo para o cursor (com uma seleção de tempo, todos os marcadores dela pela mesma distância) e atualiza o mapa de tempo/warp |
+| `reawarp - Move beat markers left by grid.lua` | Move os marcadores de batida da seleção de tempo (ou, sem ela, o mais próximo) para a esquerda, uma divisão da grade do projeto |
+| `reawarp - Move beat markers right by grid.lua` | Move os marcadores de batida da seleção de tempo (ou, sem ela, o mais próximo) para a direita, uma divisão da grade do projeto |
 | `reawarp - Add beat marker at edit cursor.lua` | Adiciona um marcador de batida no cursor de edição e atualiza o mapa de tempo/warp |
 | `reawarp - Delete nearest beat marker.lua` | Remove o marcador de batida mais próximo e atualiza o mapa de tempo/warp |
 | `reawarp - Shift beats by half a beat.lua` | Desloca meia batida as batidas antes do cursor de edição (ou na seleção de tempo), onde o detector marcou os contratempos, e atualiza o mapa de tempo/warp |
@@ -180,6 +182,13 @@ markers definidos no item (propriedades do item) ou, se o item usar o padrão, n
      tempo ou groove match, ele é aplicado de novo sozinho. Também dá para mover ou apagar
      os marcadores `RW` à mão. Os marcadores são a grade usada pelo warp; o reawarp não os
      recria se já existirem.
+   - **Um trecho de batidas adiantado ou atrasado pela mesma distância** → selecione-o com
+     uma seleção de tempo e rode *Mover marcadores de batida para a esquerda / direita
+     pela grade* (uma divisão da grade do projeto, por exemplo 1/32, a cada vez), ou
+     *Mover marcador de batida mais próximo para o cursor de edição*: todos os marcadores
+     da seleção andam a mesma distância, mantendo os intervalos entre eles (por Gianluca
+     Apollaro). Para um trecho no contratempo (meia batida fora), use *Deslocar batidas em
+     meia batida*, abaixo, que também recoloca uma batida que falte na borda.
    - **Parte da música no contratempo** → numa introdução só com voz, ou numa parada, o
      detector pode marcar os contratempos; onde a banda entra, ele volta para as batidas,
      e ali o intervalo entre dois marcadores de batida é de 1,5 batida (ou 0,5). Coloque o
