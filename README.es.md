@@ -1,4 +1,4 @@
-# reawarp: Warp, Mapa de tempo, Groove Match y Cuantización para REAPER
+# reawarp: Warp, Mapa de tempo, Groove Match, Sincronización multipista y Cuantización para REAPER
 
 *[Read in English](README.md) · [Leia em português](README.pt-BR.md)*
 
