@@ -627,6 +627,33 @@ def main():
     if max(errs) > 5:
         fails.append('quantize swing: eighths not on the triplet positions')
 
+    # long-short opening: one note per beat for two bars of two beats (1.667 +
+    # 0.333 beat), then the triplet figure: the short note takes the audio of
+    # the second beat, not of a half beat
+    lua, mock, r, core = setup()
+    mock.P.ext['reawarpq_strength'] = '100'
+    notes = []
+    for b in (4, 6):
+        notes += [{'s': b * 0.5, 'e': b * 0.5 + 0.4}, {'s': b * 0.5 + 0.5 * 5 / 3, 'e': b * 0.5 + 0.95}]
+    for b in range(8, 23):
+        notes += [{'s': b * 0.5, 'e': b * 0.5 + 0.1}, {'s': b * 0.5 + 0.5 * 2 / 3, 'e': b * 0.5 + 0.4}]
+    mock.add_midi(0.0, 14.0, lua.table_from([lua.table_from(n) for n in notes]))
+    srcq = lua.table_from({'sr': SR, 'samples': lua.table_from(yq.tolist())})
+    aq = mock.add_item(0.0, srcq, 0.0, 13.5, 'loop')
+    core.run('quantize')
+    errs = []
+    for t, want in ((2.5, 2.0 + 0.5 * 5 / 3), (3.5, 3.0 + 0.5 * 5 / 3), (4.25, 4.0 + 0.5 * 2 / 3), (5.0, 5.0)):
+        errs.append(abs(mock.map_inv(aq.take, t) - want) * 1000)
+    print(f'long-short: second beats up to {max(errs):.1f} ms from the short notes')
+    if max(errs) > 5:
+        fails.append('quantize long-short: the short notes did not take the second beat')
+    # quantizing again starts from the item before the quantize (same result)
+    core.run('quantize')
+    errs2 = [abs(mock.map_inv(aq.take, t) - want) * 1000
+             for t, want in ((2.5, 2.0 + 0.5 * 5 / 3), (3.5, 3.0 + 0.5 * 5 / 3), (4.25, 4.0 + 0.5 * 2 / 3))]
+    if max(errs2) > 5:
+        fails.append(f'quantize twice: the second run went on top of the first ({max(errs2):.0f} ms)')
+
     # sync = 2 (all overlapping items) leaves MIDI items out: a quantize
     # reference must not be stretched by the warp of a new song
     lua, mock, r, core = setup()

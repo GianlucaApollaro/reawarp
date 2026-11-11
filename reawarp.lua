@@ -1,22 +1,14 @@
 -- @description reawarp: audio warping (beat detection, warp, tempo map, groove match, quantize)
--- @version 1.0.0
+-- @version 1.0.1
 -- @author Gabriel Schuck
 -- @license GPL-3.0-or-later
 -- @links
 --   GitHub https://github.com/gabrielschuck/reawarp
 -- @changelog
---   Groove Match, beat marker editing from the keyboard, multitrack sync and
---   multichannel analysis (by GianlucaApollaro).
---   Quantize to a MIDI item: the notes of a MIDI item give the rhythm (straight,
---   swing, tarantella...); Quantize settings with safe defaults.
---   New actions: Fixed project tempo from item; Shift beats by half a beat.
---   Stretch marker every N beats = 0: automatic markers only where the tempo changes.
---   Tempo map with several items warps the others onto it; a loop keeps its attack.
---   Change song tempo re-warps the warped items in its range.
---   Sync other items: 2 = all audio items, 3 = all items including MIDI.
---   Without OSARA: progress tooltip, beat markers shown near the mouse.
---   Fine snap setting; analysis fixes (drum stems at half tempo, downbeats on
---   off-beats, missing beats near jumps).
+--   Quantize: the straight grid is found between the notes on a beat, so long-short
+--   figures (such as 1.667 + 0.333 beat) take the audio of the beat for the short note.
+--   Quantize: running it again on the same item starts from the item as it was
+--   before the quantize, instead of on top of it (try other settings freely).
 
 -- reawarp
 -- Audio warping for REAPER: detects the beats of a song (including songs with a
@@ -4162,6 +4154,7 @@ end
 -- the audio there just follows.
 ---------------------------------------------------------------------------
 local EXT_ATT = "P_EXT:reawarp_attacks"
+local EXT_PREQ = "P_EXT:reawarp_prequantize" -- stretch markers before the quantize
 
 -- Attacks of the whole source of a take, in source seconds. Read once and
 -- kept in the take (keyed by the file and its length).
@@ -4250,10 +4243,13 @@ local function midi_notes(item, take)
   return out, last_end
 end
 
--- Straight-grid positions (project time) for note times: the subdivision of
--- the beat (quarter note) is the most common number of notes per beat; each
--- note takes the nearest grid position, keeping their order (a position
--- already taken leaves the note out).
+-- Straight-grid positions (project time) for note times. Between two notes
+-- on a beat, the notes in between stand for an even split of that span: two
+-- notes in a beat are eighths (a note at 2/3 of the beat takes the audio of
+-- the half beat), two notes in two beats are quarters (a long-short figure
+-- such as 1.667 + 0.333 takes the audio of the second beat for its short
+-- note). Notes outside such spans use the most common number of notes per
+-- beat. The order is kept (a position already taken leaves the note out).
 local function grid_targets(tg)
   local qn, count = {}, {}
   for k, t in ipairs(tg) do
@@ -4267,12 +4263,27 @@ local function grid_targets(tg)
   for c, h in pairs(hist) do
     if c <= 8 and (h > best or (h == best and c < n)) then n, best = c, h end
   end
+  local g = {}
+  for k = 1, #tg do g[k] = math.floor(qn[k] * n + 0.5) / n end
+  -- notes on a beat, and the even split between two of them
+  local on = {}
+  for k = 1, #tg do
+    if math.abs(qn[k] - math.floor(qn[k] + 0.5)) < 0.06 then on[#on + 1] = k end
+  end
+  for i = 1, #on - 1 do
+    local a, b = on[i], on[i + 1]
+    local qa, qb = math.floor(qn[a] + 0.5), math.floor(qn[b] + 0.5)
+    local m = b - a
+    if qb > qa and m <= 8 * (qb - qa) then
+      for j = 0, m - 1 do g[a + j] = qa + j * (qb - qa) / m end
+    end
+  end
+  if on[1] then g[on[#on]] = math.floor(qn[on[#on]] + 0.5) end
   local out, last = {}, -math.huge
   for k = 1, #tg do
-    local g = math.floor(qn[k] * n + 0.5) / n
-    if g > last + 1e-6 then
-      out[k] = r.TimeMap2_QNToTime(0, g)
-      last = g
+    if g[k] > last + 1e-6 then
+      out[k] = r.TimeMap2_QNToTime(0, g[k])
+      last = g[k]
     end
   end
   return out
@@ -4285,6 +4296,21 @@ local function quantize_one(it, targets, note_end, s)
   local len = r.GetMediaItemInfo_Value(item, "D_LENGTH")
   local offs = r.GetMediaItemTakeInfo_Value(take, "D_STARTOFFS")
   local rate = r.GetMediaItemTakeInfo_Value(take, "D_PLAYRATE")
+  -- quantizing again (other settings, another MIDI item) starts from the item
+  -- as it was before the quantize, not on top of it
+  local _, mode = r.GetSetMediaItemTakeInfo_String(take, EXT_MODE, "", false)
+  local _, saved = r.GetSetMediaItemTakeInfo_String(take, EXT_PREQ, "", false)
+  if mode == "quantize" and saved ~= "" then
+    local n = r.GetTakeNumStretchMarkers(take)
+    if n > 0 then r.DeleteTakeStretchMarkers(take, 0, n) end
+    for ps, ss in saved:gmatch("([^ :]+):([^ ]+)") do
+      r.SetTakeStretchMarker(take, -1, tonumber(ps), tonumber(ss))
+    end
+  else
+    local parts = {}
+    for _, m in ipairs(stretch_markers(take)) do parts[#parts + 1] = string.format("%.9f:%.9f", m.pos, m.src) end
+    r.GetSetMediaItemTakeInfo_String(take, EXT_PREQ, #parts > 0 and table.concat(parts, " ") or "-", true)
+  end
   local function src_at(t) return offs + item_to_rel_src(take, t - pos) end
   -- stretch marker source = take source - offs + base
   local base
