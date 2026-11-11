@@ -1,4 +1,4 @@
-# reawarp: Warp, Tempo Map and Groove Match for REAPER
+# reawarp: Warp, Tempo Map, Groove Match and Quantize for REAPER
 
 *[Leia em português](README.pt-BR.md) · [Leer en español](README.es.md)*
 
@@ -14,7 +14,9 @@ of a song (including songs whose tempo drifts or changes) and then
 - **Warp**: fits the item to the project tempo (a stretch marker on each beat),
 - **Tempo map**: makes the project follow the song (a tempo marker on each beat), or
 - **Groove Match**: makes other items (a loop, another recording) follow the beats of a
-  reference item, without touching the project tempo.
+  reference item, without touching the project tempo, or
+- **Quantize**: moves the attacks of the audio onto the notes of a MIDI item, which gives
+  the rhythm (straight, swing, a shuffle such as the tarantella).
 
 Wrong beats can be fixed from the keyboard: move to the next or previous beat marker (OSARA
 announces bar, beat and BPM; without OSARA they are shown in a note near the mouse), and
@@ -96,6 +98,8 @@ dialog, since it explains what to check next.
 | `reawarp - Shift beats by half a beat.lua` | Shifts by half a beat the beats before the edit cursor (or in the time selection), where the detector marked the off-beats, and updates the tempo map/warp |
 | `reawarp - Set downbeat at edit cursor.lua` | Makes the beat nearest the edit cursor beat 1 |
 | `reawarp - Restore original items.lua` | Returns items to their state before reawarp |
+| `reawarp - Quantize to MIDI item.lua` | Moves the attacks of the selected audio items onto the notes of the selected MIDI item (the reference, on the upper track) |
+| `reawarp - Quantize settings.lua` | Strength, attack search and sensitivity of the quantize |
 | `reawarp - Settings.lua` | Settings |
 
 ### Beat This! detector (required)
@@ -258,7 +262,8 @@ the reference item), within the *Auto markers* tolerance.
 Multitrack recordings: with *Sync other items* set to 1 in the settings, a warp or tempo
 map applied to one item (for example the drums) is applied in the same way to the items
 grouped with it (select them and press Ctrl+G, *Group items*), so the whole band stays together; 2 includes every
-unlocked item that overlaps it. By default (0) only the selected items are changed.
+unlocked audio item that overlaps it, leaving MIDI items out (so a MIDI part or a quantize
+reference stays on the project grid); 3 includes every unlocked item, MIDI too. By default (0) only the selected items are changed.
 
 For a loop, or a song with a steady tempo, **Fixed project tempo from item** sets the project to
 the item's BPM as one fixed tempo, without a tempo map: the item keeps its own speed and is
@@ -275,6 +280,39 @@ keeping each on its bar and beat. With an item selected it changes that item's r
 with none, the whole project. The item follows with its pitch preserved. Other items in that
 range that reawarp warped (a loop, for example) are warped again onto the new tempo, so the
 start of a loop keeps its attack.
+
+### Quantize to a MIDI item
+
+**Quantize to MIDI item** moves the attacks of audio items onto the notes of a MIDI item,
+which gives the rhythm: draw or record the figure you want (straight eighths, a swing, a
+shuffle such as the tarantella, or the groove of another performance), on a track above.
+
+1. Make the audio follow the project tempo first, with *Warp* or *Tempo map* (the quantize
+   works on the beats being in time with the grid).
+2. Select the MIDI item (the reference, on the upper track) and one or more audio items.
+3. Run **Quantize to MIDI item**.
+
+Each note stands for a position of the straight grid, the most common number of notes per
+beat in the MIDI item: with two notes per beat it is eighths, so a note at 2/3 of the beat
+(a triplet swing) takes the audio of the half beat, and a note on the beat takes the audio
+of the beat. The audio there is pinned on the note with a stretch marker, on its attack
+when there is one near; the audio in between (sixteenths, for example) is stretched along.
+Only where the notes start matters, not how long they are. Muted notes are ignored; a looped
+MIDI item counts only its first pass. Outside the notes, the item stays as it was (its
+warp, for example). Several audio items can be quantized at once, and the same MIDI item
+can be used for other songs: with *Sync other items* at 2, a warp leaves MIDI items alone.
+
+**Quantize settings** (in the menu, or the action *Quantize settings*):
+
+| Field | Default | Notes |
+|---|---|---|
+| Strength in % | 75 | 100 puts each attack exactly on its note; 50 moves it half the way, keeping part of the original feel and stretching less |
+| Look for the attack within N ms of the grid | 25 | How far from the straight grid position the attack of the audio is looked for. 0 uses the grid position itself |
+| Sensitivity in % | 50 | 100 accepts even the softest attacks (in a dense mix), 0 only very clear ones. Where no attack is accepted, the grid position itself is used |
+
+The defaults are on the safe side: the groove is clearly felt, with fewer stretching
+artifacts. For an exact, aggressive quantize (the audio follows the MIDI note for note),
+use strength 100, 40 ms and sensitivity 100.
 
 Each action is a single undo step (Ctrl+Z).
 
@@ -293,7 +331,7 @@ Each action is a single undo step (Ctrl+Z).
 | Fine snap | 0 | With Beat This!, 1 puts each beat on its own first attack (within 12 ms) instead of only correcting the average offset; try it when some beats sound a little late in dense passages |
 | Item follows tempo changes | 1 | Item timebase after the warp |
 | Change project time sig | 1 | On warp, if the signatures differ: 0 = never, 1 = ask, 2 = always |
-| Sync other items | 0 | On warp/tempo map: 0 = no, 1 = items grouped with the selected item, 2 = all overlapping unlocked items |
+| Sync other items | 0 | On warp/tempo map: 0 = no, 1 = items grouped with the selected item, 2 = all overlapping unlocked audio items, 3 = all overlapping unlocked items including MIDI |
 | Beat detector | auto | `auto` (or `beat_this`) uses Beat This!; `builtin` uses the less reliable built-in detector |
 | Visual progress | auto | A tooltip near the mouse shows the stage and the time elapsed while an action runs. `auto` shows it only without OSARA (screen readers may read every update); `on` or `off` |
 | Language | auto | `auto`, `en`, `pt-BR` or `es`. `auto` uses REAPER's language pack, or else the system language |

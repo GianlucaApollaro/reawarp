@@ -35,7 +35,16 @@ function M.new(opts)
   function r.CountSelectedMediaItems() return #P.sel end
   function r.GetSelectedMediaItem(_, i) return P.sel[i + 1] end
   function r.GetActiveTake(item) return item.take end
-  function r.TakeIsMIDI() return false end
+  function r.TakeIsMIDI(t) return t.midi ~= nil end
+  function r.GetMediaSourceFileName(src) return src.name or "mock.wav" end
+  function r.GetMediaSourceLength(src) return #src.samples / src.sr end
+  -- MIDI notes: { s = start, e = end } in seconds from the item start (ppq = ms)
+  function r.MIDI_CountEvts(t) return 1, #t.midi, 0, 0 end
+  function r.MIDI_GetNote(t, i)
+    local n = t.midi[i + 1]
+    return true, false, n.muted or false, n.s * 1000, n.e * 1000, 0, 60, 100
+  end
+  function r.MIDI_GetProjTimeFromPPQPos(t, ppq) return t.item.D_POSITION + ppq / 1000 end
   function r.GetTakeName(t) return t.name end
   function r.GetMediaItemTake_Source(t) return t.src end
   function r.GetMediaSourceNumChannels() return 1 end
@@ -68,6 +77,17 @@ function M.new(opts)
     return sm[#sm].src + (pos - sm[#sm].pos) * rate
   end
   M.map = map
+  -- source (absolute) -> item time
+  function M.map_inv(t, src)
+    local rate, sm = t.D_PLAYRATE, t.sm
+    if #sm == 0 then return (src - t.D_STARTOFFS) / rate end
+    if src <= sm[1].src then return sm[1].pos + (src - sm[1].src) / rate end
+    for i = 1, #sm - 1 do
+      local a, b = sm[i], sm[i + 1]
+      if src <= b.src then return a.pos + (src - a.src) / (b.src - a.src) * (b.pos - a.pos) end
+    end
+    return sm[#sm].pos + (src - sm[#sm].src) / rate
+  end
   function r.GetTakeNumStretchMarkers(t) return #t.sm end
   function r.GetTakeStretchMarker(t, i) local m = t.sm[i + 1]; return i, m.pos, m.src end
   function r.SetTakeStretchMarker(t, idx, pos, src)
@@ -223,6 +243,13 @@ function M.new(opts)
     take.P_ITEM = item
     P.items[#P.items + 1] = item
     P.sel[#P.sel + 1] = item
+    return item
+  end
+
+  -- a MIDI item; notes = { { s = start, e = end }, ... } in seconds from its start
+  function M.add_midi(pos, len, notes, name)
+    local item = M.add_item(pos, { sr = 1, samples = {} }, 0, len, name or "midi")
+    item.take.midi = notes
     return item
   end
 

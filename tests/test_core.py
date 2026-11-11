@@ -563,6 +563,93 @@ def main():
     if n_tm_added != n_tm_before + 1 or n_tm_deleted != n_tm_before:
         fails.append(f'add_beat/del_beat marker count mismatch: {n_tm_before} -> {n_tm_added} -> {n_tm_deleted}')
 
+    # ---------- quantize to a MIDI item ----------
+    # hits played off the grid (up to 30 ms early or late); the MIDI item on the
+    # upper track has a note on each grid position, except one (the hit there
+    # must just follow) and plus one where nothing was played
+    rng = np.random.default_rng(3)
+    grid = 1.0 + np.arange(24) * 0.5
+    played = grid + rng.uniform(-0.03, 0.03, grid.size)
+    yq = np.zeros(int(14 * SR))
+    burst = rng.normal(0, 0.5, int(0.08 * SR)) * np.exp(-np.arange(int(0.08 * SR)) / (0.015 * SR))
+    for t in played:
+        i = int(round(t * SR))
+        yq[i:i + burst.size] += burst
+    yq += rng.normal(0, 0.002, yq.size)
+    lua, mock, r, core = setup()
+    mock.P.ext['reawarpq_strength'] = '100'
+    mock.P.ext['reawarpq_window'] = '40'
+    notes = [{'s': g, 'e': g + 0.25} for k, g in enumerate(grid) if k != 9] + [{'s': 13.0, 'e': 13.25}]
+    mock.add_midi(2.0, 14.0, lua.table_from([lua.table_from(n) for n in notes]))
+    srcq = lua.table_from({'sr': SR, 'samples': lua.table_from(yq.tolist())})
+    aq = mock.add_item(2.0, srcq, 0.0, 13.5, 'drums')
+    core.run('quantize')
+    print('quantize msg:', lua_list(mock.P.messages)[-1])
+    errs = []
+    for k, t in enumerate(played):
+        T = aq.D_POSITION + mock.map_inv(aq.take, t)
+        if k == 9:
+            if not (2.0 + grid[8] < T < 2.0 + grid[10]):
+                fails.append(f'quantize: the hit with no note left its place ({T:.3f})')
+        else:
+            errs.append(abs(T - (2.0 + grid[k])) * 1000)
+    print(f'quantize: hits up to {max(errs):.1f} ms from their notes '
+          f'(before: up to {np.max(np.abs(played - grid)) * 1000:.0f} ms)')
+    if max(errs) > 3:
+        fails.append('quantize: hits not on their notes')
+
+    # swing: straight eighths and sixteenths in the audio, MIDI notes on the beat
+    # and at 2/3 of it (a triplet shuffle): the eighth of the half beat goes to
+    # 2/3, the beat stays, the sixteenths in between just follow
+    yq = np.zeros(int(14 * SR))
+    eighths = 2.0 + np.arange(40) * 0.25            # project = source here (item at 0)
+    sixteenths = 2.125 + np.arange(40) * 0.25
+    for t, g in [(t, 1.0) for t in eighths] + [(t, 0.4) for t in sixteenths]:
+        i = int(round(t * SR))
+        yq[i:i + burst.size] += burst * g
+    yq += rng.normal(0, 0.002, yq.size)
+    lua, mock, r, core = setup()
+    mock.P.ext['reawarpq_strength'] = '100'   # exact (the default, 75, keeps part of the feel)
+    notes = []
+    for b in range(4, 23):   # beats at 0.5 s, from 2.0 s
+        notes += [{'s': b * 0.5, 'e': b * 0.5 + 0.1}, {'s': b * 0.5 + 0.5 * 2 / 3, 'e': b * 0.5 + 0.4}]
+    mock.add_midi(0.0, 14.0, lua.table_from([lua.table_from(n) for n in notes]))
+    srcq = lua.table_from({'sr': SR, 'samples': lua.table_from(yq.tolist())})
+    aq = mock.add_item(0.0, srcq, 0.0, 13.5, 'loop')
+    core.run('quantize')
+    print('swing msg:', lua_list(mock.P.messages)[-1])
+    errs = []
+    for t in eighths:
+        if 2.0 <= t < 11.2:
+            want = t if abs(t / 0.5 - round(t / 0.5)) < 1e-6 else t - 0.25 + 0.5 * 2 / 3
+            errs.append(abs(mock.map_inv(aq.take, t) - want) * 1000)
+    print(f'swing: eighths up to {max(errs):.1f} ms from the triplet positions')
+    if max(errs) > 5:
+        fails.append('quantize swing: eighths not on the triplet positions')
+
+    # sync = 2 (all overlapping items) leaves MIDI items out: a quantize
+    # reference must not be stretched by the warp of a new song
+    lua, mock, r, core = setup()
+    mock.P.ext['reawarpsync'] = '2'
+    mi = mock.add_midi(1.0, 10.0, lua.table_from([lua.table_from({'s': 0.5, 'e': 0.6})]))
+    mock.P.sel = lua.table_from([])
+    src = lua.table_from({'sr': SR, 'samples': lua.table_from(y.tolist())})
+    song = mock.add_item(0.0, src, 0.0, 30.0, 'song')
+    core.run('warp')
+    if abs(mi.D_POSITION - 1.0) > 1e-9 or abs(mi.D_LENGTH - 10.0) > 1e-9 or abs(mi.take.D_PLAYRATE - 1) > 1e-9:
+        fails.append('sync=2: the warp changed a MIDI item')
+    # sync = 3 includes it
+    lua, mock, r, core = setup()
+    mock.P.ext['reawarpsync'] = '3'
+    mi = mock.add_midi(1.0, 10.0, lua.table_from([lua.table_from({'s': 0.5, 'e': 0.6})]))
+    mock.P.sel = lua.table_from([])
+    src = lua.table_from({'sr': SR, 'samples': lua.table_from(y.tolist())})
+    song = mock.add_item(0.0, src, 0.0, 30.0, 'song')
+    core.run('warp')
+    if abs(mi.D_LENGTH - 10.0) < 1e-6 and abs(mi.take.D_PLAYRATE - 1) < 1e-6:
+        fails.append('sync=3: the MIDI item did not follow the warp')
+    print('sync=2 with a MIDI item:', lua_list(mock.P.messages)[-1])
+
     print('FAIL:\n  ' + '\n  '.join(fails) if fails else 'OK')
     sys.exit(1 if fails else 0)
 

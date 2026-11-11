@@ -355,6 +355,74 @@ end
 ---------------------------------------------------------------------------
 -- 5. Snap beat times (sec) to the start of the nearest transient.
 ---------------------------------------------------------------------------
+-- Attacks (note onsets) in seconds: peaks of the onset curve that stand out
+-- from their surroundings (1 s around), at least min_gap apart (the stronger
+-- one wins), each moved onto the start of its attack. With weak = true, every
+-- peak above 1% of the strongest (soft notes in a dense mix), without the
+-- comparison with the surroundings. Also returns the strength of each one.
+function M.attacks(o, fps, env, envrate, min_gap, weak)
+  local n = #o
+  if n < 8 then return {} end
+  local cs = { [0] = 0 }
+  local top = 0
+  for i = 1, n do
+    cs[i] = cs[i - 1] + o[i]
+    if o[i] > top then top = o[i] end
+  end
+  if top <= 0 then return {} end
+  local W = max(4, round(fps))
+  local gap = max(1, round((min_gap or 0.05) * fps))
+  local cand = {}
+  for i = 2, n - 1 do
+    local v = o[i]
+    if v > (weak and 0.01 or 0.05) * top then
+      local peak = true
+      for k = max(1, i - 3), min(n, i + 3) do
+        if o[k] > v or (o[k] == v and k < i) then peak = false; break end
+      end
+      if peak then
+        local a, b = max(1, i - W), min(n, i + W)
+        local mean = (cs[b] - cs[a - 1]) / (b - a + 1)
+        if weak or v > 1.5 * mean then cand[#cand + 1] = i end
+      end
+    end
+  end
+  local kept = {}
+  for _, i in ipairs(cand) do
+    local last = kept[#kept]
+    if last and i - last < gap then
+      if o[i] > o[last] then kept[#kept] = i end
+    else
+      kept[#kept + 1] = i
+    end
+  end
+  local times, strength = {}, {}
+  for k, i in ipairs(kept) do times[k] = (i - 1) / fps; strength[k] = o[i] / top end
+  if env and envrate then times = M.snap(times, env, envrate, 0.03) end
+  if weak and env and envrate then
+    -- a soft attack must rise from below: a bump in the decay of a louder
+    -- sound is not one
+    -- (nor a bump in near silence, which the log scale of the onset curve
+    -- makes look large: it must reach 5% of the loudest level)
+    local n_env = #env
+    local emax = 0
+    for q = 1, n_env do if env[q] > emax then emax = env[q] end end
+    local t2, s2 = {}, {}
+    for k, t in ipairs(times) do
+      local j = floor(t * envrate) + 1
+      if j > 7 and j + 3 <= n_env then
+        local before = 0
+        for q = j - 6, j - 1 do before = before + env[q] end
+        before = before / 6
+        local after = max(env[j], env[j + 1], env[j + 2], env[j + 3])
+        if after > 2 * before + 1e-4 and after > 0.05 * emax then t2[#t2 + 1] = t; s2[#s2 + 1] = strength[k] end
+      end
+    end
+    times, strength = t2, s2
+  end
+  return times, strength
+end
+
 function M.snap(times, env, envrate, radius)
   local n = #env
   local r = ceil(radius * envrate)
@@ -1167,7 +1235,7 @@ STRINGS.en = {
   set_fine_snap = "Fine snap: each beat on its attack (1/0)",
   set_follow = "Item follows tempo changes (1/0)",
   set_fix_sig = "Change project time sig (0=no 1=ask 2=always)",
-  set_sync = "Sync other items (0=no 1=grouped 2=all)",
+  set_sync = "Sync other items (0=no 1=grouped 2=all audio 3=all with MIDI)",
   set_progress = "Visual progress (auto=without OSARA, on, off)",
   set_lang = "Language (auto en pt-BR es)",
 
@@ -1265,6 +1333,12 @@ STRINGS.en = {
   menu_add_beat = "Add beat marker at edit cursor",
   menu_del_beat = "Delete nearest beat marker",
   menu_shift = "Shift beats by half a beat (before the edit cursor, or in the time selection)",
+  menu_quantize = "Quantize: audio attacks to the notes of a MIDI item (upper track)",
+  menu_qsettings = "Quantize settings...",
+  set_q_title = "reawarp - Quantize settings",
+  set_q_strength = "Strength in % (100 = exactly on the note)",
+  set_q_window = "Look for the attack within N ms of the grid",
+  set_q_sens = "Sensitivity in % (100 = also the softest attacks)",
   menu_downbeat = "Set downbeat at edit cursor",
   menu_restore = "Restore original items",
   menu_settings = "Settings...",
@@ -1283,6 +1357,12 @@ STRINGS.en = {
   undo_add_beat = "reawarp: add beat marker at cursor",
   undo_del_beat = "reawarp: delete nearest beat marker",
   undo_shift = "reawarp: shift beats by half a beat",
+  undo_quantize = "reawarp: quantize to MIDI item",
+  q_no_midi = "Select a MIDI item (the reference, on the upper track) and the audio items to quantize.",
+  q_no_notes = "The MIDI item %s has no notes inside it.",
+  q_none = "%s: no attack was found near the notes; nothing was changed. Raise the Sensitivity in the Quantize settings to accept softer attacks.",
+  q_done = "%s: %d of %d notes quantized.",
+  q_done_all = "Quantized to %s: %s",
   undo_downbeat = "reawarp: set downbeat",
   undo_restore = "reawarp: restore items",
   undo_retempo = "reawarp: change the song's tempo",
@@ -1334,7 +1414,7 @@ STRINGS["pt-BR"] = {
   set_fine_snap = "Ajuste fino: cada batida no seu ataque (1/0)",
   set_follow = "Item segue mudanças de tempo (1/0)",
   set_fix_sig = "Ajustar compasso do projeto (0=não 1=perguntar 2=sempre)",
-  set_sync = "Sincronizar outros itens (0=não 1=agrupados 2=todos)",
+  set_sync = "Sincronizar outros itens (0=não 1=agrupados 2=todo áudio 3=todos com MIDI)",
   set_progress = "Progresso visual (auto=sem OSARA, on, off)",
   set_lang = "Idioma (auto en pt-BR es)",
 
@@ -1432,6 +1512,12 @@ STRINGS["pt-BR"] = {
   menu_add_beat = "Adicionar marcador de batida no cursor de edição",
   menu_del_beat = "Remover marcador de batida mais próximo",
   menu_shift = "Deslocar batidas em meia batida (antes do cursor, ou na seleção de tempo)",
+  menu_quantize = "Quantizar: ataques do áudio nas notas de um item MIDI (faixa de cima)",
+  menu_qsettings = "Configurações do quantize...",
+  set_q_title = "reawarp - Configurações do quantize",
+  set_q_strength = "Força em % (100 = exatamente na nota)",
+  set_q_window = "Procurar o ataque até N ms da grade",
+  set_q_sens = "Sensibilidade em % (100 = também os ataques mais fracos)",
   menu_downbeat = "Definir tempo forte no cursor de edição",
   menu_restore = "Restaurar itens originais",
   menu_settings = "Configurações...",
@@ -1450,6 +1536,12 @@ STRINGS["pt-BR"] = {
   undo_add_beat = "reawarp: adicionar marcador de batida no cursor",
   undo_del_beat = "reawarp: remover marcador de batida mais próximo",
   undo_shift = "reawarp: deslocar batidas em meia batida",
+  undo_quantize = "reawarp: quantizar pelo item MIDI",
+  q_no_midi = "Selecione um item MIDI (a referência, na faixa de cima) e os itens de áudio a quantizar.",
+  q_no_notes = "O item MIDI %s não tem notas dentro dele.",
+  q_none = "%s: nenhum ataque foi encontrado perto das notas; nada foi mudado. Aumente a Sensibilidade nas Configurações do quantize para aceitar ataques mais fracos.",
+  q_done = "%s: %d de %d notas quantizadas.",
+  q_done_all = "Quantizado por %s: %s",
   undo_downbeat = "reawarp: definir tempo forte",
   undo_restore = "reawarp: restaurar itens",
   undo_retempo = "reawarp: alterar o tempo da música",
@@ -1501,7 +1593,7 @@ STRINGS.es = {
   set_fine_snap = "Ajuste fino: cada pulso en su ataque (1/0)",
   set_follow = "El ítem sigue los cambios de tempo (1/0)",
   set_fix_sig = "Cambiar compás del proyecto (0=no 1=preguntar 2=siempre)",
-  set_sync = "Sincronizar otros ítems (0=no 1=agrupados 2=todos)",
+  set_sync = "Sincronizar otros ítems (0=no 1=agrupados 2=todo audio 3=todos con MIDI)",
   set_progress = "Progreso visual (auto=sin OSARA, on, off)",
   set_lang = "Idioma (auto en pt-BR es)",
 
@@ -1599,6 +1691,12 @@ STRINGS.es = {
   menu_add_beat = "Añadir marcador de pulso en el cursor de edición",
   menu_del_beat = "Eliminar el marcador de pulso más cercano",
   menu_shift = "Desplazar pulsos medio pulso (antes del cursor, o en la selección de tiempo)",
+  menu_quantize = "Cuantizar: ataques del audio a las notas de un ítem MIDI (pista de arriba)",
+  menu_qsettings = "Ajustes de la cuantización...",
+  set_q_title = "reawarp - Ajustes de la cuantización",
+  set_q_strength = "Fuerza en % (100 = exactamente en la nota)",
+  set_q_window = "Buscar el ataque hasta N ms de la cuadrícula",
+  set_q_sens = "Sensibilidad en % (100 = también los ataques más suaves)",
   menu_downbeat = "Fijar el tiempo fuerte en el cursor de edición",
   menu_restore = "Restaurar los ítems originales",
   menu_settings = "Ajustes...",
@@ -1617,6 +1715,12 @@ STRINGS.es = {
   undo_add_beat = "reawarp: añadir marcador de pulso en el cursor",
   undo_del_beat = "reawarp: eliminar marcador de pulso más cercano",
   undo_shift = "reawarp: desplazar pulsos medio pulso",
+  undo_quantize = "reawarp: cuantizar según el ítem MIDI",
+  q_no_midi = "Seleccione un ítem MIDI (la referencia, en la pista de arriba) y los ítems de audio que quiere cuantizar.",
+  q_no_notes = "El ítem MIDI %s no tiene notas dentro.",
+  q_none = "%s: no se encontró ningún ataque cerca de las notas; no se cambió nada. Suba la Sensibilidad en los Ajustes de la cuantización para aceptar ataques más suaves.",
+  q_done = "%s: %d de %d notas cuantizadas.",
+  q_done_all = "Cuantizado según %s: %s",
   undo_downbeat = "reawarp: fijar el tiempo fuerte",
   undo_restore = "reawarp: restaurar ítems",
   undo_retempo = "reawarp: cambiar el tempo de la canción",
@@ -1708,6 +1812,13 @@ local FIELDS = {
   { "lang", "auto", "set_lang" },
 }
 
+-- Quantize settings, in their own dialog (REAPER's input dialog holds 16 fields)
+local Q_FIELDS = {
+  { "q_strength", 75, "set_q_strength" },
+  { "q_window", 25, "set_q_window" },
+  { "q_sens", 50, "set_q_sens" },
+}
+
 local function field_value(f, raw)
   if type(f[2]) == "string" then
     raw = raw and raw:gsub("^%s+", ""):gsub("%s+$", "") or ""
@@ -1719,11 +1830,35 @@ end
 function core.load_settings()
   local s = {}
   for _, f in ipairs(FIELDS) do s[f[1]] = field_value(f, r.GetExtState(SECTION, f[1])) end
+  for _, f in ipairs(Q_FIELDS) do s[f[1]] = field_value(f, r.GetExtState(SECTION, f[1])) end
   return s
 end
 
 function core.save_settings(s)
   for _, f in ipairs(FIELDS) do r.SetExtState(SECTION, f[1], tostring(s[f[1]]), true) end
+  for _, f in ipairs(Q_FIELDS) do r.SetExtState(SECTION, f[1], tostring(s[f[1]]), true) end
+end
+
+function core.quantize_settings_dialog(s)
+  local caps, vals = {}, {}
+  for _, f in ipairs(Q_FIELDS) do
+    caps[#caps + 1] = txt(f[3])
+    vals[#vals + 1] = tostring(s[f[1]])
+  end
+  local ok, csv = r.GetUserInputs(txt("set_q_title"), #Q_FIELDS,
+    table.concat(caps, ",") .. ",extrawidth=120", table.concat(vals, ","))
+  if not ok then return false end
+  local i = 0
+  for v in (csv .. ","):gmatch("([^,]*),") do
+    i = i + 1
+    local f = Q_FIELDS[i]
+    if f then s[f[1]] = field_value(f, v) end
+  end
+  s.q_strength = math.max(0, math.min(100, s.q_strength))
+  s.q_window = math.max(0, math.min(150, s.q_window))
+  s.q_sens = math.max(0, math.min(100, s.q_sens))
+  core.save_settings(s)
+  return true
 end
 
 -- "4/4", "3/4", "6/8"... -> { num, den, group = beats per bar, qn = quarter notes per beat }
@@ -1771,7 +1906,7 @@ function core.settings_dialog(s)
   s.every = math.max(0, math.floor(s.every))
   s.tol = math.max(1, s.tol)
   s.smooth = math.floor(s.smooth)
-  s.sync = (s.sync == 1 or s.sync == 2) and s.sync or 0
+  s.sync = (s.sync == 1 or s.sync == 2 or s.sync == 3) and s.sync or 0
   if s.min_bpm >= s.max_bpm then s.min_bpm, s.max_bpm = 60, 180 end
   core.save_settings(s)
   return true
@@ -1950,7 +2085,7 @@ end
 -- them, and freeze their timebase to Time (0) while the guide item is processed.
 local function collect_followers(guide_item, s, min_t, max_t, keep_pos)
   local mode = s and s.sync or 0
-  if mode ~= 1 and mode ~= 2 then return {} end
+  if mode ~= 1 and mode ~= 2 and mode ~= 3 then return {} end
   local gid = r.GetMediaItemInfo_Value(guide_item, "I_GROUPID") or 0
   if mode == 1 and gid == 0 then return {} end
   local gguid = item_guid(guide_item) or "1"
@@ -1961,8 +2096,13 @@ local function collect_followers(guide_item, s, min_t, max_t, keep_pos)
     if other and other ~= guide_item then
       local lock = r.GetMediaItemInfo_Value(other, "C_LOCK") or 0
       local ogid = r.GetMediaItemInfo_Value(other, "I_GROUPID") or 0
-      if (math.floor(lock) & 1) == 0 and (mode == 2 or ogid == gid) then
-        local take = r.GetActiveTake(other)
+      local otake = r.GetActiveTake(other)
+      -- 2 = all overlapping audio items: MIDI is left out, since it is usually
+      -- already on the project grid (a part, or the reference of a quantize);
+      -- 3 = all, MIDI included; 1 = grouped items, MIDI included
+      local midi_out = mode == 2 and otake and r.TakeIsMIDI(otake)
+      if (math.floor(lock) & 1) == 0 and (mode >= 2 or ogid == gid) and not midi_out then
+        local take = otake
         local pos = keep_pos and r.GetMediaItemInfo_Value(other, "D_POSITION") or unwarped_pos(other)
         local len = unwarped_len(other, take)
         if pos < max_t - 1e-6 and pos + len > min_t + 1e-6 then
@@ -3365,16 +3505,17 @@ function A.retempo(items, s)
     end
   end
   -- other items follow the change only as "Sync other items" says (0 = none,
-  -- 1 = items grouped with the selected one, 2 = all overlapping)
+  -- 1 = items grouped with the selected one, 2 or 3 = all overlapping: a
+  -- MIDI item on the grid follows a tempo change anyway)
   local sync = tonumber(s.sync) or 0
   local gid = it and r.GetMediaItemInfo_Value(it.item, "I_GROUPID") or 0
-  if s.follow ~= 0 and r.CountMediaItems and (sync == 2 or (sync == 1 and gid ~= 0)) then
+  if s.follow ~= 0 and r.CountMediaItems and (sync >= 2 or (sync == 1 and gid ~= 0)) then
     for i = 0, r.CountMediaItems(0) - 1 do
       local other = r.GetMediaItem(0, i)
       if other and (not it or other ~= it.item) then
         local lock = r.GetMediaItemInfo_Value(other, "C_LOCK") or 0
         local ogid = r.GetMediaItemInfo_Value(other, "I_GROUPID") or 0
-        if (math.floor(lock) & 1) == 0 and (sync == 2 or ogid == gid) then
+        if (math.floor(lock) & 1) == 0 and (sync >= 2 or ogid == gid) then
           local pos = r.GetMediaItemInfo_Value(other, "D_POSITION")
           local len = r.GetMediaItemInfo_Value(other, "D_LENGTH")
           if pos < t1 - 1e-6 and pos + len > t0 + 1e-6 then
@@ -4002,6 +4143,260 @@ function A.shift(items, s)
   return out, out
 end
 
+---------------------------------------------------------------------------
+-- Quantize to a MIDI item: the start of each note of the reference MIDI item
+-- (the first selected MIDI item in track order, on the upper track) is where
+-- the nearest attack of the audio goes; the audio between two attacks is
+-- stretched to fill the space up to the next note. The end of the last note
+-- takes the next attack. Notes with no attack near them are left out, and
+-- the audio there just follows.
+---------------------------------------------------------------------------
+local EXT_ATT = "P_EXT:reawarp_attacks"
+
+-- Attacks of the whole source of a take, in source seconds. Read once and
+-- kept in the take (keyed by the file and its length).
+local function take_attacks(it)
+  local item, take = it.item, it.take
+  local src = r.GetMediaItemTake_Source(take)
+  local fn = r.GetMediaSourceFileName(src, "") or ""
+  local slen = r.GetMediaSourceLength(src)
+  local key = string.format("5|%s|%.6f", fn, slen)
+  local ok, v = r.GetSetMediaItemTakeInfo_String(take, EXT_ATT, "", false)
+  if ok and v ~= "" then
+    local head, l1, l2 = v:match("^(.-)\n(.-)\n(.*)$")
+    if head == key then
+      local a, w, ws = {}, {}, {}
+      for x in l1:gmatch("[^ ]+") do a[#a + 1] = tonumber(x) end
+      for x, y in l2:gmatch("([^ :]+):([^ ]+)") do w[#w + 1] = tonumber(x); ws[#ws + 1] = tonumber(y) end
+      return a, w, ws
+    end
+  end
+  -- read the plain source: the item without its stretch, from the start of
+  -- the file, then put the item back as it was
+  local saved = {
+    sm = stretch_markers(take),
+    rate = r.GetMediaItemTakeInfo_Value(take, "D_PLAYRATE"),
+    offs = r.GetMediaItemTakeInfo_Value(take, "D_STARTOFFS"),
+    len = r.GetMediaItemInfo_Value(item, "D_LENGTH"),
+    pos = r.GetMediaItemInfo_Value(item, "D_POSITION"),
+    tb = r.GetMediaItemInfo_Value(item, "C_BEATATTACHMODE"),
+  }
+  neutralize(item, take, true)
+  r.SetMediaItemTakeInfo_Value(take, "D_STARTOFFS", 0)
+  r.SetMediaItemInfo_Value(item, "D_LENGTH", slen)
+  local acc = r.CreateTakeAudioAccessor(take)
+  local t0 = r.GetAudioAccessorStartTime(acc)
+  local t1 = r.GetAudioAccessorEndTime(acc)
+  local ipos = r.GetMediaItemInfo_Value(item, "D_POSITION")
+  local item_off = (ipos > 1e-6 and math.abs(t0 - ipos) < 1e-6) and 0 or t0
+  local nsamp = math.floor((t1 - t0) * SR)
+  local read = take_reader(acc, t0, source_channels(src), nsamp)
+  local okr, o, _, env, envrate, fps = pcall(dsp.onset_envelope, read, nsamp, SR, 128)
+  r.DestroyAudioAccessor(acc)
+  local n = r.GetTakeNumStretchMarkers(take)
+  if n > 0 then r.DeleteTakeStretchMarkers(take, 0, n) end
+  r.SetMediaItemTakeInfo_Value(take, "D_PLAYRATE", saved.rate)
+  r.SetMediaItemTakeInfo_Value(take, "D_STARTOFFS", saved.offs)
+  r.SetMediaItemInfo_Value(item, "D_POSITION", saved.pos)
+  r.SetMediaItemInfo_Value(item, "D_LENGTH", saved.len)
+  for _, m in ipairs(saved.sm) do r.SetTakeStretchMarker(take, -1, m.pos, m.src) end
+  r.SetMediaItemInfo_Value(item, "C_BEATATTACHMODE", saved.tb)
+  if not okr then error(o) end
+  local a = dsp.attacks(o, fps, env, envrate, 0.05)
+  local w, ws = dsp.attacks(o, fps, env, envrate, 0.02, true)
+  local parts, wparts = {}, {}
+  for i, t in ipairs(a) do a[i] = t + item_off; parts[i] = string.format("%.4f", a[i]) end
+  for i, t in ipairs(w) do w[i] = t + item_off; wparts[i] = string.format("%.4f:%.3f", w[i], ws[i]) end
+  r.GetSetMediaItemTakeInfo_String(take, EXT_ATT,
+    key .. "\n" .. table.concat(parts, " ") .. "\n" .. table.concat(wparts, " "), true)
+  return a, w, ws
+end
+
+-- Note starts of a MIDI item in project time (chords count once), and the end
+-- of the last note; only notes inside the item, not muted.
+local function midi_notes(item, take)
+  local p0 = r.GetMediaItemInfo_Value(item, "D_POSITION")
+  local p1 = p0 + r.GetMediaItemInfo_Value(item, "D_LENGTH")
+  local _, n = r.MIDI_CountEvts(take)
+  local starts, last_end = {}, nil
+  for i = 0, n - 1 do
+    local _, _, muted, sppq, eppq = r.MIDI_GetNote(take, i)
+    if not muted then
+      local t = r.MIDI_GetProjTimeFromPPQPos(take, sppq)
+      local e = r.MIDI_GetProjTimeFromPPQPos(take, eppq)
+      if t >= p0 - 1e-6 and t < p1 - 1e-6 then
+        starts[#starts + 1] = t
+        e = math.min(e, p1)
+        if not last_end or e > last_end then last_end = e end
+      end
+    end
+  end
+  table.sort(starts)
+  local out = {}
+  for _, t in ipairs(starts) do
+    if not out[1] or t - out[#out] > 0.03 then out[#out + 1] = t end
+  end
+  if last_end and out[1] and last_end <= out[#out] + 0.03 then last_end = nil end
+  return out, last_end
+end
+
+-- Straight-grid positions (project time) for note times: the subdivision of
+-- the beat (quarter note) is the most common number of notes per beat; each
+-- note takes the nearest grid position, keeping their order (a position
+-- already taken leaves the note out).
+local function grid_targets(tg)
+  local qn, count = {}, {}
+  for k, t in ipairs(tg) do
+    qn[k] = r.TimeMap2_timeToQN(0, t)
+    local b = math.floor(qn[k] + 0.1)
+    count[b] = (count[b] or 0) + 1
+  end
+  local hist = {}
+  for _, c in pairs(count) do hist[c] = (hist[c] or 0) + 1 end
+  local n, best = 1, 0
+  for c, h in pairs(hist) do
+    if c <= 8 and (h > best or (h == best and c < n)) then n, best = c, h end
+  end
+  local out, last = {}, -math.huge
+  for k = 1, #tg do
+    local g = math.floor(qn[k] * n + 0.5) / n
+    if g > last + 1e-6 then
+      out[k] = r.TimeMap2_QNToTime(0, g)
+      last = g
+    end
+  end
+  return out
+end
+
+local function quantize_one(it, targets, note_end, s)
+  local item, take = it.item, it.take
+  local attacks, weak, wstr = take_attacks(it)
+  local pos = r.GetMediaItemInfo_Value(item, "D_POSITION")
+  local len = r.GetMediaItemInfo_Value(item, "D_LENGTH")
+  local offs = r.GetMediaItemTakeInfo_Value(take, "D_STARTOFFS")
+  local rate = r.GetMediaItemTakeInfo_Value(take, "D_PLAYRATE")
+  local function src_at(t) return offs + item_to_rel_src(take, t - pos) end
+  -- stretch marker source = take source - offs + base
+  local base
+  local sm = stretch_markers(take)
+  if #sm > 0 then
+    base = sm[1].src - sm[1].pos * rate
+  else
+    local idx = r.SetTakeStretchMarker(take, -1, 0)
+    local _, _, s0 = r.GetTakeStretchMarker(take, idx)
+    r.DeleteTakeStretchMarkers(take, idx)
+    base = s0
+  end
+  local function msrc(a) return a - offs + base end
+
+  -- The audio is in time with the project (warp or tempo map), so each note
+  -- stands for a position of the straight grid: the subdivision is the usual
+  -- number of notes per beat in the MIDI item (two: eighths, so a note at 2/3
+  -- of the beat takes the audio of the half beat), and each note takes the
+  -- nearest grid position, in order. The audio there is pinned on the note,
+  -- on its attack when there is one within the search window (ms).
+  local tg = {}
+  for _, t in ipairs(targets) do
+    if t > pos + 1e-3 and t < pos + len - 1e-3 then tg[#tg + 1] = t end
+  end
+  local win = math.max(0, math.min(150, s.q_window or 25)) / 1000
+  local sens = math.max(0, math.min(100, s.q_sens or 50)) / 100
+  local floor_s = 0.01 * sens + 0.2 * (1 - sens)
+  local st = math.max(0, math.min(1, (s.q_strength or 75) / 100))
+  local straight = grid_targets(tg)
+  local pins, notes, last_s, last_t = {}, 0, -math.huge, -math.huge
+  local j0 = 1
+  for k, t in ipairs(tg) do
+    breath()
+    local g = straight[k]
+    if g then
+      local a = src_at(g)
+      -- the attack of the audio there, if any (the strongest one, a little
+      -- favouring the nearest)
+      local lo, hi = src_at(g - win), src_at(g + win)
+      while j0 <= #weak and weak[j0] < lo do j0 = j0 + 1 end
+      local bs = 0
+      for j = j0, #weak do
+        local w = weak[j]
+        if w > hi then break end
+        if wstr[j] >= floor_s then
+          local sc = wstr[j] * (1 - 0.5 * math.abs(w - a) / math.max(1e-3, hi - lo))
+          if sc > bs then bs, a = sc, w end
+        end
+      end
+      local now = rel_src_to_item(take, a - offs)
+      local pt = now + st * ((t - pos) - now)
+      if a > last_s + 1e-3 and pt > last_t + 1e-3 then
+        pins[#pins + 1] = { t = pt, s = msrc(a) }
+        last_s, last_t = a, pt
+        if t < note_end - 1e-6 then notes = notes + 1 end
+      end
+    end
+  end
+  if #pins == 0 then return nil end
+
+  -- markers: the old ones before the first pin and after the last one, the
+  -- pins in between; the start and end of the item keep their audio
+  local list = {}
+  local first, last = pins[1], pins[#pins]
+  local head, tail = false, false
+  for _, m in ipairs(sm) do
+    if m.pos < first.t - 1e-3 and m.src < first.s - 1e-4 then list[#list + 1] = m; head = true end
+  end
+  if not head then list[#list + 1] = { pos = 0, src = msrc(src_at(pos)) } end
+  for _, p in ipairs(pins) do list[#list + 1] = { pos = p.t, src = p.s } end
+  for _, m in ipairs(sm) do
+    if m.pos > last.t + 1e-3 and m.src > last.s + 1e-4 then list[#list + 1] = m; tail = true end
+  end
+  if not tail then list[#list + 1] = { pos = len, src = msrc(src_at(pos + len)) } end
+  local n = r.GetTakeNumStretchMarkers(take)
+  if n > 0 then r.DeleteTakeStretchMarkers(take, 0, n) end
+  local lp, ls = -math.huge, -math.huge
+  for _, m in ipairs(list) do
+    if m.pos > lp + 1e-4 and m.src > ls + 1e-5 then
+      r.SetTakeStretchMarker(take, -1, m.pos, m.src)
+      lp, ls = m.pos, m.src
+    end
+  end
+  r.GetSetMediaItemTakeInfo_String(take, EXT_MODE, "quantize", true)
+  r.UpdateItemInProject(item)
+  return notes
+end
+
+function A.quantize(items, s)
+  -- the reference: the first selected MIDI item in track order
+  local ref
+  for i = 0, r.CountSelectedMediaItems(0) - 1 do
+    local item = r.GetSelectedMediaItem(0, i)
+    local take = r.GetActiveTake(item)
+    if take and r.TakeIsMIDI(take) then
+      local name = r.GetTakeName(take)
+      if name == "" then
+        local tr = r.GetMediaItem_Track and r.GetMediaItem_Track(item)
+        name = tr and select(2, r.GetTrackName(tr)) or "MIDI"
+      end
+      ref = { item = item, take = take, name = name }
+      break
+    end
+  end
+  if not ref or #items == 0 then return txt("q_no_midi") end
+  local starts, last_end = midi_notes(ref.item, ref.take)
+  if #starts == 0 then return txt("q_no_notes", ref.name) end
+  local targets = {}
+  for i, t in ipairs(starts) do targets[i] = t end
+  if last_end then targets[#targets + 1] = last_end end
+  local out = {}
+  for _, it in ipairs(items) do
+    remember_original(it.item)
+    local timebase = r.GetMediaItemInfo_Value(it.item, "C_BEATATTACHMODE")
+    r.SetMediaItemInfo_Value(it.item, "C_BEATATTACHMODE", 0)
+    local np = quantize_one(it, targets, last_end or math.huge, s)
+    r.SetMediaItemInfo_Value(it.item, "C_BEATATTACHMODE", timebase)
+    out[#out + 1] = np and txt("q_done", it.name, np, #starts) or txt("q_none", it.name)
+  end
+  return txt("q_done_all", ref.name, table.concat(out, " "))
+end
+
 function A.restore(items)
   local n, seen, guides, groups = 0, {}, {}, {}
   local function restore_one(item)
@@ -4068,6 +4463,8 @@ local MAIN = {
   { "add_beat", "menu_add_beat" },
   { "del_beat", "menu_del_beat" },
   { "shift", "menu_shift" },
+  { "quantize", "menu_quantize" },
+  { "qsettings", "menu_qsettings" },
   { "downbeat", "menu_downbeat" },
   { "restore", "menu_restore" },
   { "settings", "menu_settings" },
@@ -4119,6 +4516,7 @@ function core.run(action)
     action = list[c][1]
   end
   if action == "settings" then core.settings_dialog(s); return end
+  if action == "qsettings" then core.quantize_settings_dialog(s); return end
   if action == "install" then
     local m = open_installer()
     if m then report(m) end
@@ -4245,6 +4643,8 @@ local ACTION_FILES = {
   { "add_beat", "reawarp - Add beat marker at edit cursor.lua" },
   { "del_beat", "reawarp - Delete nearest beat marker.lua" },
   { "shift", "reawarp - Shift beats by half a beat.lua" },
+  { "quantize", "reawarp - Quantize to MIDI item.lua" },
+  { "qsettings", "reawarp - Quantize settings.lua" },
   { "downbeat", "reawarp - Set downbeat at edit cursor.lua" },
   { "restore", "reawarp - Restore original items.lua" },
   { "settings", "reawarp - Settings.lua" },

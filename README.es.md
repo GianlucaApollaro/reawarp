@@ -1,4 +1,4 @@
-# reawarp: Warp, Mapa de tempo y Groove Match para REAPER
+# reawarp: Warp, Mapa de tempo, Groove Match y Cuantización para REAPER
 
 *[Read in English](README.md) · [Leia em português](README.pt-BR.md)*
 
@@ -14,7 +14,9 @@ de una canción (incluso con tempo variable) y
 - **Warp**: ajusta el ítem al tempo del proyecto (un stretch marker en cada pulso),
 - **Mapa de tempo**: hace que el proyecto siga la canción (un marcador de tempo en cada pulso), o
 - **Groove Match** (*Igualar groove*): hace que otros ítems (un loop, otra grabación) sigan
-  los pulsos de un ítem de referencia, sin cambiar el tempo del proyecto.
+  los pulsos de un ítem de referencia, sin cambiar el tempo del proyecto, o
+- **Cuantizar**: lleva los ataques del audio a las notas de un ítem MIDI, que marca el ritmo
+  (recto, swing, un shuffle como la tarantela).
 
 Los pulsos incorrectos se pueden corregir con el teclado: vaya al marcador de pulso
 siguiente o anterior (OSARA anuncia compás, pulso y BPM; sin OSARA se muestran en una nota
@@ -102,6 +104,8 @@ Las acciones tienen nombre en inglés en la lista de acciones:
 | `reawarp - Shift beats by half a beat.lua` | Desplaza medio pulso los pulsos antes del cursor de edición (o en la selección de tiempo), donde el detector marcó los contratiempos, y actualiza el mapa de tempo/warp |
 | `reawarp - Set downbeat at edit cursor.lua` | Convierte en pulso 1 el pulso más cercano al cursor de edición |
 | `reawarp - Restore original items.lua` | Devuelve los ítems al estado que tenían antes de reawarp |
+| `reawarp - Quantize to MIDI item.lua` | Lleva los ataques de los ítems de audio seleccionados a las notas del ítem MIDI seleccionado (la referencia, en la pista de arriba) |
+| `reawarp - Quantize settings.lua` | Fuerza, búsqueda del ataque y sensibilidad de la cuantización |
 | `reawarp - Settings.lua` | Ajustes |
 
 ### Detector Beat This! (necesario)
@@ -281,7 +285,9 @@ creado por el ítem de referencia), dentro de la tolerancia de *Marcadores autom
 Grabaciones multipista: con *Sincronizar otros ítems* en 1 en los ajustes, el warp o el mapa
 de tempo aplicado a un ítem (por ejemplo la batería) se aplica de la misma manera a los
 ítems agrupados con él (selecciónelos y pulse Ctrl+G, *Group items*), y toda la banda sigue
-junta; 2 incluye todos los ítems desbloqueados en la misma zona. Por defecto (0), solo
+junta; 2 incluye todos los ítems de audio desbloqueados en la misma zona, sin los ítems MIDI (para que
+una parte MIDI o la referencia de una cuantización quede en la cuadrícula del proyecto); 3
+incluye todos los ítems desbloqueados, también los MIDI. Por defecto (0), solo
 cambian los ítems seleccionados.
 
 Para un loop, o una canción con tempo estable, **Fixed project tempo from item** (en el menú:
@@ -303,6 +309,41 @@ todo el proyecto. El ítem acompaña el cambio y conserva la afinación. Los dem
 zona que recibieron el warp de reawarp (un loop, por ejemplo) reciben el warp de nuevo hacia
 el nuevo tempo, y el inicio de un loop conserva su ataque.
 
+### Cuantizar según un ítem MIDI
+
+**Cuantizar** (*Quantize to MIDI item*) lleva los ataques de ítems de audio a las notas de un
+ítem MIDI, que marca el ritmo: dibuje o grabe la figura que quiera (corcheas rectas, un
+swing, un shuffle como la tarantela, o el groove de otra interpretación), en una pista de
+arriba.
+
+1. Primero haga que el audio siga el tempo del proyecto, con *Warp* o *Mapa de tempo* (la
+   cuantización parte de que los pulsos están a tempo con la cuadrícula).
+2. Seleccione el ítem MIDI (la referencia, en la pista de arriba) y uno o más ítems de audio.
+3. Ejecute **Cuantizar**.
+
+Cada nota corresponde a una posición de la cuadrícula recta, con el número de notas por
+pulso más habitual en el ítem MIDI: con dos notas por pulso son corcheas, así que una nota a
+2/3 del pulso (swing de tresillo) recibe el audio de la mitad del pulso, y una nota en el
+pulso recibe el audio del pulso. El audio de ahí se fija en la nota con un stretch marker,
+en su ataque cuando hay uno cerca; el audio de en medio (semicorcheas, por ejemplo) se
+estira con él. Solo cuenta dónde empiezan las notas, no su duración. Las notas silenciadas
+se ignoran; un ítem MIDI en bucle solo cuenta la primera vuelta. Fuera de las notas, el ítem
+queda como estaba (con su warp, por ejemplo). Se pueden cuantizar varios ítems de audio a la
+vez, y el mismo ítem MIDI sirve para otras canciones: con *Sincronizar otros ítems* en 2, el
+warp no toca los ítems MIDI.
+
+**Ajustes de la cuantización** (en el menú, o la acción *Quantize settings*):
+
+| Campo | Por defecto | Notas |
+|---|---|---|
+| Fuerza en % | 75 | 100 pone cada ataque exactamente en su nota; 50 lo lleva a mitad de camino, conservando parte de la interpretación original y estirando menos |
+| Buscar el ataque hasta N ms de la cuadrícula | 25 | Hasta dónde, alrededor de la posición de la cuadrícula recta, se busca el ataque del audio. 0 usa la propia posición de la cuadrícula |
+| Sensibilidad en % | 50 | 100 acepta incluso los ataques más suaves (en una mezcla densa), 0 solo los muy claros. Donde no se acepta ningún ataque, se usa la propia posición de la cuadrícula |
+
+Los valores por defecto son prudentes: el groove se nota bien, con menos artefactos de
+estiramiento. Para una cuantización exacta y agresiva (el audio sigue al MIDI nota por
+nota), use fuerza 100, 40 ms y sensibilidad 100.
+
 Cada acción es un único paso de deshacer (Ctrl+Z).
 
 ## Ajustes
@@ -320,7 +361,7 @@ Cada acción es un único paso de deshacer (Ctrl+Z).
 | Ajuste fino | 0 | Con Beat This!, 1 pone cada pulso en su primer ataque (hasta 12 ms) en lugar de solo corregir el desplazamiento medio; pruébelo cuando algunos pulsos suenen un poco tarde en pasajes densos |
 | El ítem sigue los cambios de tempo | 1 | Base de tiempo del ítem después del warp |
 | Cambiar compás del proyecto | 1 | En el warp, si los compases difieren: 0 = nunca, 1 = preguntar, 2 = siempre |
-| Sincronizar otros ítems | 0 | En el warp/mapa de tempo: 0 = no, 1 = ítems agrupados con el seleccionado, 2 = todos los desbloqueados superpuestos |
+| Sincronizar otros ítems | 0 | En el warp/mapa de tempo: 0 = no, 1 = ítems agrupados con el seleccionado, 2 = todos los ítems de audio desbloqueados superpuestos, 3 = todos los ítems desbloqueados superpuestos, MIDI incluido |
 | Detector de pulsos | auto | `auto` (o `beat_this`) usa Beat This!; `builtin` usa el detector integrado, menos fiable |
 | Progreso visual | auto | Una ayuda emergente (tooltip) junto al ratón muestra la etapa y el tiempo transcurrido mientras se ejecuta una acción. `auto` la muestra solo sin OSARA (los lectores de pantalla pueden leer cada actualización); `on` u `off` |
 | Idioma | auto | `auto`, `en`, `pt-BR` o `es`. `auto` usa el paquete de idioma de REAPER o, si no hay, el idioma del sistema |

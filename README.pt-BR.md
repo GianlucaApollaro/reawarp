@@ -1,4 +1,4 @@
-# reawarp: Warp, Mapa de tempo e Groove Match para o REAPER
+# reawarp: Warp, Mapa de tempo, Groove Match e Quantize para o REAPER
 
 *[Read in English](README.md) · [Leer en español](README.es.md)*
 
@@ -14,7 +14,9 @@ batidas de uma música (inclusive com tempo variável) e
 - **Warp**: encaixa o item no tempo do projeto (stretch markers em cada batida),
 - **Mapa de tempo**: faz o projeto seguir a música (marcadores de tempo em cada batida), ou
 - **Groove Match** (*Combinar groove*): faz outros itens (um loop, outra gravação) seguirem
-  as batidas de um item de referência, sem mexer no tempo do projeto.
+  as batidas de um item de referência, sem mexer no tempo do projeto, ou
+- **Quantizar**: leva os ataques do áudio para as notas de um item MIDI, que dá o ritmo
+  (reto, swing, um shuffle como a tarantela).
 
 As batidas erradas podem ser corrigidas pelo teclado: vá ao marcador de batida seguinte ou
 anterior (o OSARA fala compasso, tempo e BPM; sem o OSARA, eles aparecem numa nota perto
@@ -99,6 +101,8 @@ numa janela, porque explica o que conferir em seguida.
 | `reawarp - Shift beats by half a beat.lua` | Desloca meia batida as batidas antes do cursor de edição (ou na seleção de tempo), onde o detector marcou os contratempos, e atualiza o mapa de tempo/warp |
 | `reawarp - Set downbeat at edit cursor.lua` | Define o tempo 1 na batida mais próxima do cursor |
 | `reawarp - Restore original items.lua` | Volta o item ao estado anterior ao reawarp |
+| `reawarp - Quantize to MIDI item.lua` | Leva os ataques dos itens de áudio selecionados para as notas do item MIDI selecionado (a referência, na faixa de cima) |
+| `reawarp - Quantize settings.lua` | Força, busca do ataque e sensibilidade do quantize |
 | `reawarp - Settings.lua` | Configurações |
 
 ### Detector Beat This! (necessário)
@@ -270,7 +274,9 @@ pelo item de referência), dentro da tolerância de *Marcadores automáticos*.
 Gravações multipista: com *Sincronizar outros itens* em 1 nas configurações, o warp ou o
 mapa de tempo aplicado a um item (por exemplo a bateria) é aplicado do mesmo jeito aos itens
 agrupados com ele (selecione-os e aperte Ctrl+G, *Group items*), e a banda toda continua
-junta; 2 inclui todos os itens desbloqueados no mesmo trecho. No padrão (0), só os itens
+junta; 2 inclui todos os itens de áudio desbloqueados no mesmo trecho, sem os itens MIDI (para que uma
+parte MIDI ou a referência de um quantize fique no grid do projeto); 3 inclui todos os itens
+desbloqueados, MIDI também. No padrão (0), só os itens
 selecionados mudam.
 
 Para um loop, ou uma música de tempo estável, **Fixed project tempo from item** (no menu: *Tempo
@@ -292,6 +298,39 @@ projeto inteiro. O item acompanha, com o tom preservado. Outros itens nesse trec
 receberam warp do reawarp (um loop, por exemplo) recebem o warp de novo para o novo tempo,
 e o começo de um loop mantém o seu ataque.
 
+### Quantizar por um item MIDI
+
+**Quantizar** (*Quantize to MIDI item*) leva os ataques de itens de áudio para as notas de um
+item MIDI, que dá o ritmo: desenhe ou grave a figura que quiser (colcheias retas, um swing,
+um shuffle como a tarantela, ou o groove de outra execução), numa faixa acima.
+
+1. Primeiro faça o áudio seguir o tempo do projeto, com *Warp* ou *Mapa de tempo* (o quantize
+   parte das batidas estarem no tempo do grid).
+2. Selecione o item MIDI (a referência, na faixa de cima) e um ou mais itens de áudio.
+3. Rode **Quantizar**.
+
+Cada nota corresponde a uma posição do grid reto, com o número de notas por tempo mais comum
+no item MIDI: com duas notas por tempo são colcheias, então uma nota a 2/3 do tempo (swing de
+tercina) recebe o áudio da metade do tempo, e uma nota na cabeça recebe o áudio da cabeça. O
+áudio dali é preso na nota com um stretch marker, no seu ataque quando há um perto; o áudio
+no meio (semicolcheias, por exemplo) é esticado junto. Só conta onde as notas começam, não a
+duração delas. Notas mudas são ignoradas; um item MIDI em loop conta só a primeira volta.
+Fora das notas, o item fica como estava (com o seu warp, por exemplo). Vários itens de áudio
+podem ser quantizados de uma vez, e o mesmo item MIDI pode ser usado em outras músicas: com
+*Sincronizar outros itens* em 2, o warp não mexe nos itens MIDI.
+
+**Configurações do quantize** (no menu, ou a ação *Quantize settings*):
+
+| Campo | Padrão | Observações |
+|---|---|---|
+| Força em % | 75 | 100 põe cada ataque exatamente na nota; 50 leva até a metade do caminho, mantendo parte da execução original e esticando menos |
+| Procurar o ataque até N ms da grade | 25 | Até onde, em volta da posição do grid reto, procurar o ataque do áudio. 0 usa a própria posição do grid |
+| Sensibilidade em % | 50 | 100 aceita até os ataques mais fracos (numa mixagem densa), 0 só os bem claros. Onde nenhum ataque é aceito, usa a própria posição do grid |
+
+Os padrões são do lado seguro: o groove se ouve bem, com menos artefatos de esticamento.
+Para um quantize exato e agressivo (o áudio segue o MIDI nota por nota), use força 100,
+40 ms e sensibilidade 100.
+
 Cada ação é um único passo de desfazer (Ctrl+Z).
 
 ## Configurações
@@ -309,7 +348,7 @@ Cada ação é um único passo de desfazer (Ctrl+Z).
 | Ajuste fino | 0 | Com o Beat This!, 1 coloca cada batida no seu primeiro ataque (até 12 ms) em vez de só corrigir o deslocamento médio; experimente quando algumas batidas soarem um pouco atrasadas em trechos cheios |
 | Item segue mudanças de tempo | 1 | Base de tempo do item após o warp |
 | Ajustar compasso do projeto | 1 | No warp, se a fórmula difere: 0 = nunca, 1 = perguntar, 2 = sempre |
-| Sincronizar outros itens | 0 | No warp/mapa de tempo: 0 = não, 1 = itens agrupados com o selecionado, 2 = todos os desbloqueados sobrepostos |
+| Sincronizar outros itens | 0 | No warp/mapa de tempo: 0 = não, 1 = itens agrupados com o selecionado, 2 = todos os itens de áudio desbloqueados sobrepostos, 3 = todos os itens desbloqueados sobrepostos, MIDI incluído |
 | Detector de batidas | auto | `auto` (ou `beat_this`) usa o Beat This!; `builtin` usa o detector interno, menos confiável |
 | Progresso visual | auto | Uma dica (tooltip) perto do mouse mostra a etapa e o tempo decorrido enquanto uma ação roda. `auto` mostra só sem o OSARA (leitores de tela podem ler cada atualização); `on` ou `off` |
 | Idioma | auto | `auto`, `en`, `pt-BR` ou `es`. `auto` usa o langpack do REAPER ou, sem ele, o idioma do sistema |
