@@ -1,4 +1,4 @@
-# reawarp: Warp, Mapa de tempo, Groove Match, Sincronização multipista e Quantize para o REAPER
+# reawarp: Warp, Mapa de tempo, Groove Match, Sincronização multipista e Quantização de áudio via MIDI para o REAPER
 
 *[Read in English](README.md) · [Leer en español](README.es.md)*
 
